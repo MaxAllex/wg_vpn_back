@@ -7,7 +7,7 @@ from aiohttp import ClientSession, ClientResponse
 from dotenv import load_dotenv
 
 load_dotenv()
-PASSWORD_DATA = {'password': os.getenv('PASSWORD', '37cIHWp8SDiL'), 'remember': 'true'}
+PASSWORD_DATA = {'password': os.getenv('PASSWORD'), 'remember': 'true'}
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ async def create_client(session: ClientSession, endpoint: str, user_name: str) -
 
 async def get_clients(session: ClientSession, endpoint: str) -> dict:
     async with session.get(f"http://{endpoint}:51821/api/wireguard/client") as response:
-        return await response.json()  # JSON сразу возвращаем
+        return await response.json()
 
 
 @asynccontextmanager

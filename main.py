@@ -13,7 +13,6 @@ class ClientConfigRequest(BaseModel):
 
 @app.post("/get-config")
 async def get_config(request: ClientConfigRequest):
-    # Валидация токена
     await verify_token(request.token)
 
     config = await get_wireguard_config(request.user_name)
@@ -22,6 +21,5 @@ async def get_config(request: ClientConfigRequest):
 
 @app.post("/login")
 async def login(user_name: str):
-    # Генерация токена
     access_token = await create_access_token(data={"user_name": user_name})
     return {"access_token": access_token, "token_type": "bearer"}

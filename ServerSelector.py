@@ -27,7 +27,7 @@ class ServerSelector:
         """Получение текущего статуса сервера"""
         try:
             async with wg_client.create_session(server.host) as session:
-                if session is None:  # Проверяем, что сессия создана
+                if session is None:
                     server.is_active = False
                     return
 
