@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
-from auth import verify_token, create_access_token
+from services.auth import verify_token, create_access_token
 from config import get_wireguard_config
 from pydantic import BaseModel
 
