@@ -16,6 +16,7 @@ async def get_config(request: ClientConfigRequest):
     await verify_token(request.token)
 
     config = await get_wireguard_config(request.user_name)
+
     return config
 
 

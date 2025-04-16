@@ -1,5 +1,6 @@
 from ServerSelector import Server, ServerSelector
 import wg_client
+from utils import Utils
 
 
 async def get_wireguard_config(user_name: str):
@@ -21,8 +22,8 @@ async def get_wireguard_config(user_name: str):
 
     async with wg_client.create_session(best_server.host) as session:
         await wg_client.create_client(session, best_server.host, user_name)
-        clients = await wg_client.get_clients(session, best_server.host)
-        client = [c for c in clients if c['name'] == user_name]
-        client_id = client[0]["id"]
+        client_id = Utils.get_client_id(session, best_server)
+        Utils.save_client_to_db(session, best_server, user_name)
         config_as_bytes = await wg_client.get_config(session, best_server.host, client_id)
+
     return config_as_bytes

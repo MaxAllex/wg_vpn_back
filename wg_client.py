@@ -27,6 +27,16 @@ async def get_clients(session: ClientSession, endpoint: str) -> dict:
         return await response.json()
 
 
+async def action_with_client(session: ClientSession, endpoint: str, client_id: str, action: str) -> dict:
+    async with session.post(f"http://{endpoint}:51821/api/wireguard/client/{client_id}/{action}") as response:
+        return response.json()
+
+
+async def delete_client(session: ClientSession, endpoint: str, client_id: str) -> dict:
+    async with session.delete(f"http://{endpoint}:51821/api/wireguard/client/{client_id}") as response:
+        return response.json()
+
+
 @asynccontextmanager
 async def create_session(endpoint: str):
     session = aiohttp.ClientSession()
