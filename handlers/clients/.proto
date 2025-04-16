@@ -3,18 +3,20 @@ syntax="proto3";
 package client_handler;
 
 service ClientHandler {
-	rpc GetStatus(GetStatusRequest) returns (stream StatusResponse){}
+	rpc GetStatus(GetRequest) returns (stream StatusResponse){}
+	rpc GetConnectConfig(GetRequest) returns (stream ConnectResponse){}
+	rpc GetConnectQR(GetRequest) returns (stream ConnectResponse){}
 }
 
 
-message GetStatusRequest {
+message GetRequest {
 	string access_token = 1;
 }
 
 message StatusResponse {
-	oenof response {
+	oneof response {
 		Ack ack = 1;
-		Response response = 2;
+		InfoResponse response = 2;
 	}
 }
 
@@ -22,7 +24,27 @@ message Ack {
 	string message = 1;
 }
 
-message Response {
+message InfoResponse {
 	bool status = 1;
 	string output = 2;
+}
+
+message ConnectResponse {
+	oneof response {
+		Ack ack = 1;
+		ConfigResponse response = 2;
+	}
+}
+
+message ConfigResponse {
+	bool status = 1;
+	bool is_image = 2;
+	oneof config {
+		string output = 3;
+		Image image = 4;
+	}
+}
+
+message Image {
+	bytes image_data=1;
 }
