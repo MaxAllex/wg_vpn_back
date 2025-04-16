@@ -1,0 +1,28 @@
+syntax="proto3";
+
+package client_handler;
+
+service ClientHandler {
+	rpc GetStatus(GetStatusRequest) returns (stream StatusResponse){}
+}
+
+
+message GetStatusRequest {
+	string access_token = 1;
+}
+
+message StatusResponse {
+	oenof response {
+		Ack ack = 1;
+		Response response = 2;
+	}
+}
+
+message Ack {
+	string message = 1;
+}
+
+message Response {
+	bool status = 1;
+	string output = 2;
+}
