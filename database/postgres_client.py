@@ -32,6 +32,7 @@ class ClientRepository:
             self.connection = await asyncpg.connect(f'{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}')
             return None
         except Exception as e:
+            logger.error(f"Error connecting to the database: {e}")
             return f"Error connecting to the database:{e}"
     
     async def close(self):
@@ -40,12 +41,47 @@ class ClientRepository:
                 await self.connection.close()
             except Exception as e:
                 self.connection = None
+                logger.error(f"Error closing the database connection: {e}")
                 return f"Error closing the database connection: {e}"
             else:
                 self.connection = None
                 return None
         return None
     
+    async def save_client(self, client_data: dict, retry_count: int = 0):
+        try:
+            query = """
+                    INSERT INTO users (id, telegram_id, wg_id, has_premium_status, premium_status_is_valid_until, 
+                            config_file, qr_code, enabled_status, created_at, need_to_disable, jwt_version)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0);
+                    """
+            await self.connection.execute(query,
+                                          client_data["id"],
+                                          client_data["telegram_id"],
+                                          client_data["wg_id"],
+                                          client_data["has_premium_status"],
+                                          client_data["premium_status_is_valid_until"],
+                                          client_data["config_file"],
+                                          client_data["qr_code"],
+                                          client_data["enabled_status"],
+                                          client_data["created_at"],
+                                          client_data["need_to_disable"])
+            logger.info(f"Клиент {client_data['telegram_id']} сохранен в базе данных")
+            return None
+        except asyncpg.exceptions.ConnectionDoesNotExistError as e:
+            if retry_count < 3:
+                await self.connect()
+                return await self.save_client(client_data, retry_count + 1)
+            else:
+                logger.error(f"Error saving client: {e}")
+                return f"Error saving client: {e}"
+        except Exception as e:
+            logger.error(f"Error saving client: {e}")
+            return f"Error saving client: {e}"
+        
+        
+
+            
             
 
 
