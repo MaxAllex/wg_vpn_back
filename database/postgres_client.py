@@ -7,24 +7,22 @@ from dotenv import load_dotenv
 
 from database.entities.client import Client
 
-load_dotenv()
-POSTGRES_USER = os.getenv('POSTGRES_USER')
-POSTGRES_PASSWORD = os.getenv('POSTGRES_PASS')
-POSTGRES_PORT = os.getenv('POSTGRES_PORT')
-POSTGRES_DB_NAME = os.getenv('POSTGRES_DB_NAME')
-POSTGRES_HOST_NAME = os.getenv('POSTGRES_HOST_NAME')
-
-
-logger = logging.getLogger(__name__)
-
 
 class ClientRepository:
-    def __init__(self, db_user: str, db_password: str, db_host: str, db_port: int, db_name: str, max_retries: int = 3):
-        self.db_user = db_user
-        self.db_password = db_password
-        self.db_host = db_host
-        self.db_port = db_port
-        self.db_name = db_name
+    def __init__(self, max_retries: int = 3):
+        load_dotenv()
+        POSTGRES_USER = os.getenv('POSTGRES_USER')
+        POSTGRES_PASSWORD = os.getenv('POSTGRES_PASS')
+        POSTGRES_PORT = os.getenv('POSTGRES_PORT')
+        POSTGRES_DB_NAME = os.getenv('POSTGRES_DB_NAME')
+        POSTGRES_HOST_NAME = os.getenv('POSTGRES_HOST_NAME')  
+        logger = logging.getLogger(__name__)
+        self.logger = logger
+        self.db_user = POSTGRES_USER
+        self.db_password = POSTGRES_PASSWORD
+        self.db_port = int(POSTGRES_PORT)
+        self.db_name = POSTGRES_DB_NAME
+        self.db_host = POSTGRES_HOST_NAME
         self.max_retries = max_retries
 
     async def connect(self):
@@ -32,7 +30,7 @@ class ClientRepository:
             conn = await asyncpg.connect(f'{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}')
             return conn
         except Exception as e:
-            logger.error(f"Error connecting to the database: {e}")
+            self.logger.error(f"Error connecting to the database: {e}")
             return None
     
     async def close(self, conn) -> str:
@@ -40,7 +38,7 @@ class ClientRepository:
             try:
                 await conn.close()
             except Exception as e:
-                logger.error(f"Error closing the database connection: {e}")
+                self.logger.error(f"Error closing the database connection: {e}")
                 return f"Error closing the database connection: {e}"
             else:
                 return None
@@ -68,14 +66,14 @@ class ClientRepository:
                                 client_data["created_at"],
                                 client_data["need_to_disable"]
                                 )
-            logger.info(f"Клиент {client_data['telegram_id']} сохранен в базе данных")
+            self.logger.info(f"Клиент {client_data['telegram_id']} сохранен в базе данных")
             return None
         
         except Exception as e:
             if retry_count < self.max_retries:
                 return await self.save_client(client_data, retry_count + 1)
             else:
-                logger.error(f"Error saving client: {e}")
+                self.logger.error(f"Error saving client: {e}")
                 return f"Error saving client: {e}"
         finally:
             await self.close(conn)
@@ -89,7 +87,7 @@ class ClientRepository:
             if retry_count < self.max_retries:
                 return await self.get_all_clients(retry_count + 1)
             else:
-                logger.error(f"Error getting client: {e}")
+                self.logger.error(f"Error getting client: {e}")
                 return []
         finally:
             await self.close(conn)
@@ -117,14 +115,14 @@ class ClientRepository:
         except Exception as e:
             if retry_count < self.max_retries:
                 return await self.get_client_by_telegram_id(telegram_id, retry_count + 1)
-            logger.error(f"Error getting client by telegram_id: {e}")
+            self.logger.error(f"Error getting client by telegram_id: {e}")
             return None
         finally:
             await conn.close()     
 
     async def update_user_data(self, telegram_id, retry_count , **kwargs):
         if not kwargs:
-            logger.error("Нет данных для обновления")
+            self.logger.error("Нет данных для обновления")
             return
         try:
             conn = await self.connect()
@@ -134,11 +132,11 @@ class ClientRepository:
 
             query = f"UPDATE users SET {set_clause} WHERE telegram_id = ${len(values)};"
             await conn.execute(query, *values)
-            logger.info(f"Обновлены поля {list(kwargs.keys())} у пользователя {telegram_id}")
+            self.logger.info(f"Обновлены поля {list(kwargs.keys())} у пользователя {telegram_id}")
         except Exception as e:
             if retry_count < self.max_retries:
                 return await self.update_user_data(telegram_id, retry_count + 1, **kwargs)
-            logger.error(f"Error updating user data: {e}")
+            self.logger.error(f"Error updating user data: {e}")
         finally:
             await conn.close()
 
@@ -151,11 +149,11 @@ class ClientRepository:
         
             query = f"UPDATE users SET {field} = $1 WHERE telegram_id = $2;"
             await conn.execute(query, value, telegram_id)
-            logger.info(f"Поле {field} у пользователя {telegram_id} обновлено!")
+            self.logger.info(f"Поле {field} у пользователя {telegram_id} обновлено!")
         except Exception as e:
             if retry_count < self.max_retries:
                 return await self.update_single_field(telegram_id, retry_count + 1, field, value)
-            logger.error(f"Error updating single field: {e}")
+            self.logger.error(f"Error updating single field: {e}")
         finally:
             await conn.close()
             
