@@ -15,8 +15,10 @@ class Client(BaseModel):
     enabled_status: bool
     created_at: Optional[datetime]
     need_to_disable: bool
+    jwt_version: int #Для того чтобы инвалидировать токены, например, при смене пароля путём +1 к версии
 
 
+    
 # Метод для преобразования в словарь
 def to_dict(self):
     return self.model_dump()

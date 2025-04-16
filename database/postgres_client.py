@@ -18,6 +18,37 @@ POSTGRES_HOST_NAME = os.getenv('POSTGRES_HOST_NAME')
 logger = logging.getLogger(__name__)
 
 
+class ClientRepository:
+    def __init__(self, db_user: str, db_password: str, db_host: str, db_port: int, db_name: str):
+        self.db_user = db_user
+        self.db_password = db_password
+        self.db_host = db_host
+        self.db_port = db_port
+        self.db_name = db_name
+        self.connection = None
+
+    async def connect(self) -> str:
+        try:
+            self.connection = await asyncpg.connect(f'{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}')
+            return None
+        except Exception as e:
+            return f"Error connecting to the database:{e}"
+    
+    async def close(self):
+        if self.connection is not None:
+            try:
+                await self.connection.close()
+            except Exception as e:
+                self.connection = None
+                return f"Error closing the database connection: {e}"
+            else:
+                self.connection = None
+                return None
+        return None
+    
+            
+
+
 async def get_db_connection():
     """Устанавливаем соединение с PostgreSQL"""
     return await asyncpg.connect(f'postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST_NAME}:{int(POSTGRES_PORT)}/{POSTGRES_DB_NAME}')
