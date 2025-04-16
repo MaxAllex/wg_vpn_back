@@ -4,8 +4,8 @@ package client_handler;
 
 service ClientHandler {
 	rpc GetStatus(GetRequest) returns (stream StatusResponse){}
-	rpc GetConnectConfig(GetRequest) returns (stream ConnectResponse){}
-	rpc GetConnectQR(GetRequest) returns (stream ConnectResponse){}
+	rpc GetConnectConfig(GetRequest) returns (stream ConfigResponse){}
+	rpc GetConnectQR(GetRequest) returns (stream ConfigResponse){}
 }
 
 
@@ -16,7 +16,7 @@ message GetRequest {
 message StatusResponse {
 	oneof response {
 		Ack ack = 1;
-		InfoResponse response = 2;
+		InfoResponse info = 2;
 	}
 }
 
@@ -29,19 +29,11 @@ message InfoResponse {
 	string output = 2;
 }
 
-message ConnectResponse {
-	oneof response {
-		Ack ack = 1;
-		ConfigResponse response = 2;
-	}
-}
-
 message ConfigResponse {
 	bool status = 1;
-	bool is_image = 2;
 	oneof config {
-		string output = 3;
-		Image image = 4;
+		string output = 2;
+		Image image = 3;
 	}
 }
 
