@@ -6,6 +6,8 @@ import client_handler_pb2_grpc
 from dotenv import load_dotenv
 import os
 import logging
+from services.jwt import JWTService
+
 
 class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
     def GetStatus(self, request, context):
@@ -58,11 +60,11 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             qr_response.output = "Invalid token"
         yield qr_response
 
-    def __init__(self):
+    def __init__(self, jwt_service: JWTService):
         load_dotenv()
         self.logger = logging.getLogger(__name__)
         self.grpc_client_port = int(os.getenv("GRPC_CLIENT_PORT"))
-
+        self.jwt_service = jwt_service
         
     def serve(self):
         try:
