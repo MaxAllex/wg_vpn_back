@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14\x63lient_handler.proto\x12\x0e\x63lient_handler\"\"\n\nGetRequest\x12\x14\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\t\"n\n\x0eStatusResponse\x12\"\n\x03\x61\x63k\x18\x01 \x01(\x0b\x32\x13.client_handler.AckH\x00\x12,\n\x04info\x18\x02 \x01(\x0b\x32\x1c.client_handler.InfoResponseH\x00\x42\n\n\x08response\"\x16\n\x03\x41\x63k\x12\x0f\n\x07message\x18\x01 \x01(\t\".\n\x0cInfoResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x12\x0e\n\x06output\x18\x02 \x01(\t\"d\n\x0e\x43onfigResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x12\x10\n\x06output\x18\x02 \x01(\tH\x00\x12&\n\x05image\x18\x03 \x01(\x0b\x32\x15.client_handler.ImageH\x00\x42\x08\n\x06\x63onfig\"\x1b\n\x05Image\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\x32\x80\x02\n\rClientHandler\x12K\n\tGetStatus\x12\x1a.client_handler.GetRequest\x1a\x1e.client_handler.StatusResponse\"\x00\x30\x01\x12R\n\x10GetConnectConfig\x12\x1a.client_handler.GetRequest\x1a\x1e.client_handler.ConfigResponse\"\x00\x30\x01\x12N\n\x0cGetConnectQR\x12\x1a.client_handler.GetRequest\x1a\x1e.client_handler.ConfigResponse\"\x00\x30\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14\x63lient_handler.proto\x12\x0e\x63lient_handler\"\"\n\nGetRequest\x12\x14\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\t\"n\n\x0eStatusResponse\x12\"\n\x03\x61\x63k\x18\x01 \x01(\x0b\x32\x13.client_handler.AckH\x00\x12,\n\x04info\x18\x02 \x01(\x0b\x32\x1c.client_handler.InfoResponseH\x00\x42\n\n\x08response\"\x16\n\x03\x41\x63k\x12\x0f\n\x07message\x18\x01 \x01(\t\".\n\x0cInfoResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x12\x0e\n\x06output\x18\x02 \x01(\t\"\x88\x01\n\x0e\x43onfigResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\x12\x10\n\x06output\x18\x02 \x01(\tH\x00\x12&\n\x05image\x18\x03 \x01(\x0b\x32\x15.client_handler.ImageH\x00\x12\"\n\x03\x61\x63k\x18\x04 \x01(\x0b\x32\x13.client_handler.AckH\x00\x42\x08\n\x06\x63onfig\"\x1b\n\x05Image\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\x32\x80\x02\n\rClientHandler\x12K\n\tGetStatus\x12\x1a.client_handler.GetRequest\x1a\x1e.client_handler.StatusResponse\"\x00\x30\x01\x12R\n\x10GetConnectConfig\x12\x1a.client_handler.GetRequest\x1a\x1e.client_handler.ConfigResponse\"\x00\x30\x01\x12N\n\x0cGetConnectQR\x12\x1a.client_handler.GetRequest\x1a\x1e.client_handler.ConfigResponse\"\x00\x30\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -39,10 +39,10 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_ACK']._serialized_end=210
   _globals['_INFORESPONSE']._serialized_start=212
   _globals['_INFORESPONSE']._serialized_end=258
-  _globals['_CONFIGRESPONSE']._serialized_start=260
-  _globals['_CONFIGRESPONSE']._serialized_end=360
-  _globals['_IMAGE']._serialized_start=362
-  _globals['_IMAGE']._serialized_end=389
-  _globals['_CLIENTHANDLER']._serialized_start=392
-  _globals['_CLIENTHANDLER']._serialized_end=648
+  _globals['_CONFIGRESPONSE']._serialized_start=261
+  _globals['_CONFIGRESPONSE']._serialized_end=397
+  _globals['_IMAGE']._serialized_start=399
+  _globals['_IMAGE']._serialized_end=426
+  _globals['_CLIENTHANDLER']._serialized_start=429
+  _globals['_CLIENTHANDLER']._serialized_end=685
 # @@protoc_insertion_point(module_scope)

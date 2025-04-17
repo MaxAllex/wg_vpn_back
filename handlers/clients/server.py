@@ -12,52 +12,67 @@ from services.jwt import JWTService
 class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
     def GetStatus(self, request, context):
         ack_response = client_handler_pb2.StatusResponse()
+        if self.jwt_service.verify_token(request.access_token) == "Token expired":
+            ack_response.ack.message = "Token expired"
+            return ack_response
+        if self.jwt_service.verify_token(request.access_token) == "Invalid token":
+            ack_response.ack.message = "Invalid token"
+            return ack_response
         ack_response.ack.message = "Request received"
         yield ack_response
         #TODO вставить обработку status
         info_response = client_handler_pb2.StatusResponse()
-        if request.access_token == "valid_token":
-            info_response.info.status = True
-            info_response.info.output = "Status check completed successfully"
-        else:
-            info_response.info.status = False
-            info_response.info.output = "Invalid access token"
+        info_response.info.status = True
+        info_response.info.output = "Status check completed successfully"
+        
         yield info_response
 
     def GetConnectConfig(self, request, context):
         ack_response = client_handler_pb2.ConfigResponse()
-        ack_response.status = True
-        ack_response.output = "Config request received"
+        if self.jwt_service.verify_token(request.access_token) == "Token expired":
+            ack_response.status = False
+            ack_response.ack.message = "Token expired"
+            return ack_response
+        if self.jwt_service.verify_token(request.access_token) == "Invalid token":
+            ack_response.status = False
+            ack_response.ack.message = "Invalid token"
+            return ack_response
+        
+        ack_response.ack.message = "Config request received"
         yield ack_response
+
         #TODO вставить обработку config
         config_response = client_handler_pb2.ConfigResponse()
-        if request.access_token == "valid_token":
-            config_response.status = True
-            config_response.output = "Configuration data"
-        else:
-            config_response.status = False
-            config_response.output = "Unauthorized"
+        config_response.status = True
+        config_response.output = "Configuration data"
         yield config_response
 
     def GetConnectQR(self, request, context):
         ack_response = client_handler_pb2.ConfigResponse()
+        if self.jwt_service.verify_token(request.access_token) == "Token expired":
+            ack_response.status = False
+            ack_response.ack.message = "Token expired"
+            return ack_response
+        if self.jwt_service.verify_token(request.access_token) == "Invalid token":
+            ack_response.status = False
+            ack_response.ack.message = "Invalid token"
+            return ack_response
+        
         ack_response.status = True
-        ack_response.output = "QR request received"
+        ack_response.ack.message = "QR request received"
         yield ack_response
 
         #TODO вставить обработку qr
         qr_response = client_handler_pb2.ConfigResponse()
-        if request.access_token == "valid_token":
-            qr_response.status = True
-            try:
-                with open("sample_qr.png", "rb") as f:
-                    qr_response.image.image_data = f.read()
-            except FileNotFoundError:
-                qr_response.status = False
-                qr_response.output = "QR image not found"
-        else:
+        
+        qr_response.status = True
+        try:
+            with open("sample_qr.png", "rb") as f:
+                qr_response.image.image_data = f.read()
+        except FileNotFoundError:
             qr_response.status = False
-            qr_response.output = "Invalid token"
+            qr_response.output = "QR image not found"
+
         yield qr_response
 
     def __init__(self, jwt_service: JWTService):
