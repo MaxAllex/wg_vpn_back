@@ -1,8 +1,8 @@
 import grpc
 from concurrent import futures
 import time
-import client_handler_pb2
-import client_handler_pb2_grpc
+from . import client_handler_pb2
+from . import client_handler_pb2_grpc
 from dotenv import load_dotenv
 import os
 import logging
@@ -75,8 +75,8 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
 
         yield qr_response
 
-    def __init__(self, jwt_service: JWTService):
-        load_dotenv()
+    def __init__(self, jwt_service):
+        
         self.logger = logging.getLogger(__name__)
         self.grpc_client_port = int(os.getenv("GRPC_CLIENT_PORT"))
         self.jwt_service = jwt_service
@@ -84,7 +84,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
     def serve(self):
         try:
             server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-            client_handler_pb2_grpc.add_ClientHandlerServicer_to_server(ClientHandlerService(), server)
+            client_handler_pb2_grpc.add_ClientHandlerServicer_to_server(self, server)
             server.add_insecure_port(f'[::]:{self.grpc_client_port}')
             self.logger.info(f"serving client_grpc server started at {self.grpc_client_port}")
             server.start()

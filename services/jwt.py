@@ -14,7 +14,6 @@ import jwt.exceptions
 
 class JWTService:
     def __init__(self):
-        load_dotenv()
         SECRET_KEY = os.getenv("SECRET_KEY")
         ALGORITHM = os.getenv("ALGORITHM", "HS256")
         ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30)
