@@ -2,6 +2,7 @@ syntax="proto3";
 
 package client_handler;
 
+import "google/protobuf/timestamp.proto"; 
 service ClientHandler {
 	rpc GetStatus(GetRequest) returns (stream StatusResponse){}
 	rpc GetConnectConfig(GetRequest) returns (stream ConfigResponse){}
@@ -27,6 +28,12 @@ message Ack {
 message InfoResponse {
 	bool status = 1;
 	string output = 2;
+	string connection_status = 3;
+	google.protobuf.Timestamp created_at = 4;
+	double gigabytes = 5;
+	google.protobuf.Timestamp last_connection = 6;
+	bool premium_status = 7;
+	google.protobuf.Timestamp premium_until = 8;
 }
 
 message ConfigResponse {
