@@ -46,5 +46,5 @@ message ConfigResponse {
 }
 
 message Image {
-	bytes image_data=1;
+	string image_data=1;
 }
