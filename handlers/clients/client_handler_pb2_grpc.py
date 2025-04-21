@@ -49,6 +49,11 @@ class ClientHandlerStub(object):
                 request_serializer=client__handler__pb2.GetRequest.SerializeToString,
                 response_deserializer=client__handler__pb2.ConfigResponse.FromString,
                 _registered_method=True)
+        self.HandleConnect = channel.unary_stream(
+                '/client_handler.ClientHandler/HandleConnect',
+                request_serializer=client__handler__pb2.GetRequest.SerializeToString,
+                response_deserializer=client__handler__pb2.ConnectResponse.FromString,
+                _registered_method=True)
 
 
 class ClientHandlerServicer(object):
@@ -72,6 +77,12 @@ class ClientHandlerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def HandleConnect(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ClientHandlerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -89,6 +100,11 @@ def add_ClientHandlerServicer_to_server(servicer, server):
                     servicer.GetConnectQR,
                     request_deserializer=client__handler__pb2.GetRequest.FromString,
                     response_serializer=client__handler__pb2.ConfigResponse.SerializeToString,
+            ),
+            'HandleConnect': grpc.unary_stream_rpc_method_handler(
+                    servicer.HandleConnect,
+                    request_deserializer=client__handler__pb2.GetRequest.FromString,
+                    response_serializer=client__handler__pb2.ConnectResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -172,6 +188,33 @@ class ClientHandler(object):
             '/client_handler.ClientHandler/GetConnectQR',
             client__handler__pb2.GetRequest.SerializeToString,
             client__handler__pb2.ConfigResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def HandleConnect(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/client_handler.ClientHandler/HandleConnect',
+            client__handler__pb2.GetRequest.SerializeToString,
+            client__handler__pb2.ConnectResponse.FromString,
             options,
             channel_credentials,
             insecure,

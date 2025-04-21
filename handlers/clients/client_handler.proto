@@ -7,6 +7,7 @@ service ClientHandler {
 	rpc GetStatus(GetRequest) returns (stream StatusResponse){}
 	rpc GetConnectConfig(GetRequest) returns (stream ConfigResponse){}
 	rpc GetConnectQR(GetRequest) returns (stream ConfigResponse){}
+	rpc HandleConnect(GetRequest) returns (stream ConnectResponse){}
 }
 
 
@@ -47,4 +48,24 @@ message ConfigResponse {
 
 message Image {
 	string image_data=1;
+}
+
+message ConnectResponseInfo {
+	bool status = 1;
+	string config = 2;
+	string image_data = 3;	
+	string uuid = 4;		
+	string wg_id = 5;
+	bool has_premium_status = 6;
+	google.protobuf.Timestamp premium_until = 7;
+	string enabled_status = 8;
+	google.protobuf.Timestamp created_at = 9;
+	bool need_to_disable = 10;
+}
+
+message ConnectResponse {
+	oneof response {
+		Ack ack = 1;
+		ConnectResponseInfo info = 2;
+	}
 }
