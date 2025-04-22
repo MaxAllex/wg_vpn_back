@@ -44,6 +44,8 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             'user_data': db_user_data
         })
 
+        
+
     def GetConnectConfig(self, request, context):
         ack_response = client_handler_pb2.ConfigResponse()
         user_data = self.jwt_service.verify_token(request.access_token)
@@ -135,14 +137,21 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     
                     if correlation_id in self.active_requests:
                         response_queue = self.active_requests[correlation_id]
-                        
-                        if 'error' in data:
+                        if 'status_response' in data.keys():
                             response_queue.put(
-                                client_handler_pb2.ConfigResponse(error=data['error']))
-                        else:
-                            config = data['config']
+                                data['status_response']
+                            )
+                        elif 'config_response' in data.keys():
                             response_queue.put(
-                                client_handler_pb2.ConfigResponse()
+                                data['config_response']
+                            )
+                        elif 'connect_response' in data.keys():
+                            response_queue.put(
+                                data['connect_response']
+                            )
+                        elif 'qr_response' in data.keys():
+                            response_queue.put(
+                                data['qr_response']
                             )
                             
                         if correlation_id in self.active_requests:
@@ -153,7 +162,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         
         threading.Thread(target=consume_responses, daemon=True).start()
 
-    def __init__(self, jwt_service):
+    def __init__(self, jwt_service, kafka_timeout_seconds=60):
         kafka_bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
         if kafka_bootstrap_servers is None:
             raise ValueError("KAFKA_BOOTSTRAP_SERVERS environment variable is not set")
@@ -162,7 +171,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             value_serializer=lambda v: json.dumps(v).encode('utf-8')
         )
         self.active_requests = {}
-        
+        self.kafka_timeout_seconds = kafka_timeout_seconds
         self._start_kafka_consumer(kafka_bootstrap_servers) 
         self.logger = logging.getLogger(__name__)
         self.grpc_client_port = int(os.getenv("GRPC_CLIENT_PORT"))
