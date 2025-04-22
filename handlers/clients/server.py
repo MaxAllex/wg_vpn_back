@@ -44,7 +44,31 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             'user_data': db_user_data
         })
 
-        
+        try:
+            start_time = time.time()
+            while True:
+                try:
+                    response = response_queue.get(timeout=3)
+                    if not response['status']:
+                        ack_response.ack.message = "Request failed"
+                        return ack_response
+                    ack_response.info.status = response['status']
+                    ack_response.info.output = response['output']
+                    ack_response.info.connection_status = response['connection_status']
+                    ack_response.info.created_at = response['created_at']
+                    ack_response.info.gigabytes = response['gigabytes']
+                    ack_response.info.last_connection = response['last_connection']
+                    ack_response.info.premium_status = response['premium_status']
+                    ack_response.info.premium_until = response['premium_until']
+                    return ack_response
+                except Queue.Empty:
+                    if time.time() - start_time > self.kafka_timeout_seconds:
+                        ack_response.ack.message = "Timeout"
+                        return ack_response
+                    continue
+        finally:
+            if correlation_id in self.active_requests:
+                del self.active_requests[correlation_id]
 
     def GetConnectConfig(self, request, context):
         ack_response = client_handler_pb2.ConfigResponse()
