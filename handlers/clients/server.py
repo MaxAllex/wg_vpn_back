@@ -10,24 +10,33 @@ import logging
 import json
 from services.jwt import JWTService
 import threading
+from queue import Queue
+import uuid
 
 class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
+    def GetDbUserData(self, request, context, user_data):
+        if "telegram_id" in user_data.items():
+            pass
+        return "User Not Found"
     def GetStatus(self, request, context):
         ack_response = client_handler_pb2.StatusResponse()
-        if self.jwt_service.verify_token(request.access_token) == "Token expired":
+        user_data = self.jwt_service.verify_token(request.access_token)
+        if user_data == "Token expired":
             ack_response.ack.message = "Token expired"
             return ack_response
-        if self.jwt_service.verify_token(request.access_token) == "Invalid token":
+        if user_data == "Invalid token":
             ack_response.ack.message = "Invalid token"
             return ack_response
+        db_user_data = self.GetDbUserData(request, context, user_data)
+        if db_user_data == "User Not Found":
+            ack_response.ack.message = "User Not Found"
+            return ack_response
+        
         ack_response.ack.message = "Request received"
         yield ack_response
-        #TODO вставить обработку status
-        info_response = client_handler_pb2.StatusResponse()
-        info_response.info.status = True
-        info_response.info.output = "Status check completed successfully"
         
-        yield info_response
+        response_queue = Queue()
+        correlation_id = str(uuid.uuid4())
 
     def GetConnectConfig(self, request, context):
         ack_response = client_handler_pb2.ConfigResponse()
