@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 def main():
     load_dotenv()
     jwt_service = JWTService()
+    
     client_handler_service = ClientHandlerService(jwt_service)
     client_handler_service.serve()
 
