@@ -95,6 +95,25 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             'user_data': db_user_data
         })
 
+        try:
+            start_time = time.time()
+            while True:
+                try:
+                    response = response_queue.get(timeout=3)
+                    if not response['status']:
+                        ack_response.ack.message = "Request failed"
+                        return ack_response
+                    ack_response.config.output = response['output']
+                    return ack_response
+                except Queue.Empty:
+                    if time.time() - start_time > self.kafka_timeout_seconds:
+                        ack_response.ack.message = "Timeout"
+                        return ack_response
+                    continue
+        finally:
+            if correlation_id in self.active_requests:
+                del self.active_requests[correlation_id]
+
     def GetConnectQR(self, request, context):
         ack_response = client_handler_pb2.ConfigResponse()
         user_data = self.jwt_service.verify_token(request.access_token)
@@ -120,6 +139,25 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             'user_data': db_user_data
         })
 
+        try:
+            start_time = time.time()
+            while True:
+                try:
+                    response = response_queue.get(timeout=3)
+                    if not response['status']:
+                        ack_response.ack.message = "Request failed"
+                        return ack_response
+                    ack_response.image.image_data = response['image_data']
+                    return ack_response
+                except Queue.Empty:
+                    if time.time() - start_time > self.kafka_timeout_seconds:
+                        ack_response.ack.message = "Timeout"
+                        return ack_response
+                    continue
+        finally:
+            if correlation_id in self.active_requests:
+                del self.active_requests[correlation_id]
+
     def HandleConnect(self, request, context):
         ack_response = client_handler_pb2.ConnectResponse()
         user_data = self.jwt_service.verify_token(request.access_token)
@@ -144,6 +182,33 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             'correlation_id': correlation_id,
             'user_data': db_user_data
         })
+        try:
+            start_time = time.time()
+            while True:
+                try:
+                    response = response_queue.get(timeout=3)
+                    if not response['status']:
+                        ack_response.ack.message = "Request failed"
+                        return ack_response
+
+                    ack_response.info.config = response['config']
+                    ack_response.info.image_data = response['image_data']
+                    ack_response.info.uuid = response['uuid']
+                    ack_response.info.wg_id = response['wg_id']
+                    ack_response.info.has_premium_status = response['has_premium_status']
+                    ack_response.info.premium_until = response['premium_until']
+                    ack_response.info.enabled_status = response['enabled_status']
+                    ack_response.info.created_at = response['created_at']
+                    ack_response.info.need_to_disable = response['need_to_disable']
+                    return ack_response
+                except Queue.Empty:
+                    if time.time() - start_time > self.kafka_timeout_seconds:
+                        ack_response.ack.message = "Timeout"
+                        return ack_response
+                    continue
+        finally:
+            if correlation_id in self.active_requests:
+                del self.active_requests[correlation_id]
 
     def _start_kafka_consumer(self, bootstrap_servers):
         """Запускает фоновый поток для получения ответов из Kafka"""
