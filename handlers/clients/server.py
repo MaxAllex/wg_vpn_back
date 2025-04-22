@@ -18,6 +18,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         if "telegram_id" in user_data.items():
             pass
         return "User Not Found"
+    
     def GetStatus(self, request, context):
         ack_response = client_handler_pb2.StatusResponse()
         user_data = self.jwt_service.verify_token(request.access_token)
@@ -37,54 +38,87 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         
         response_queue = Queue()
         correlation_id = str(uuid.uuid4())
+        self.active_requests[correlation_id] = response_queue
+        self.kafka_producer.send('info-requests', value={
+            'correlation_id': correlation_id,
+            'user_data': db_user_data
+        })
 
     def GetConnectConfig(self, request, context):
         ack_response = client_handler_pb2.ConfigResponse()
-        if self.jwt_service.verify_token(request.access_token) == "Token expired":
-            ack_response.status = False
+        user_data = self.jwt_service.verify_token(request.access_token)
+        if user_data == "Token expired":
             ack_response.ack.message = "Token expired"
             return ack_response
-        if self.jwt_service.verify_token(request.access_token) == "Invalid token":
-            ack_response.status = False
+        if user_data == "Invalid token":
             ack_response.ack.message = "Invalid token"
             return ack_response
+        db_user_data = self.GetDbUserData(request, context, user_data)
+        if db_user_data == "User Not Found":
+            ack_response.ack.message = "User Not Found"
+            return ack_response
         
-        ack_response.ack.message = "Config request received"
+        ack_response.ack.message = "Request received"
         yield ack_response
-
-        #TODO вставить обработку config
-        config_response = client_handler_pb2.ConfigResponse()
-        config_response.status = True
-        config_response.output = "Configuration data"
-        yield config_response
+        
+        response_queue = Queue()
+        correlation_id = str(uuid.uuid4())
+        self.active_requests[correlation_id] = response_queue
+        self.kafka_producer.send('config-requests', value={
+            'correlation_id': correlation_id,
+            'user_data': db_user_data
+        })
 
     def GetConnectQR(self, request, context):
         ack_response = client_handler_pb2.ConfigResponse()
-        if self.jwt_service.verify_token(request.access_token) == "Token expired":
-            ack_response.status = False
+        user_data = self.jwt_service.verify_token(request.access_token)
+        if user_data == "Token expired":
             ack_response.ack.message = "Token expired"
             return ack_response
-        if self.jwt_service.verify_token(request.access_token) == "Invalid token":
-            ack_response.status = False
+        if user_data == "Invalid token":
             ack_response.ack.message = "Invalid token"
             return ack_response
+        db_user_data = self.GetDbUserData(request, context, user_data)
+        if db_user_data == "User Not Found":
+            ack_response.ack.message = "User Not Found"
+            return ack_response
         
-        ack_response.status = True
-        ack_response.ack.message = "QR request received"
+        ack_response.ack.message = "Request received"
         yield ack_response
-
-        #TODO вставить обработку qr
-        qr_response = client_handler_pb2.ConfigResponse()
         
-        qr_response.status = True
-        try:
-            with open("sample_qr.png", "rb") as f:
-                qr_response.image.image_data = f.read()
-        except FileNotFoundError:
-            qr_response.status = False
-            qr_response.output = "QR image not found"
+        response_queue = Queue()
+        correlation_id = str(uuid.uuid4())
+        self.active_requests[correlation_id] = response_queue
+        self.kafka_producer.send('qr-requests', value={
+            'correlation_id': correlation_id,
+            'user_data': db_user_data
+        })
 
-        yield qr_response
+    def HandleConnect(self, request, context):
+        ack_response = client_handler_pb2.ConnectResponse()
+        user_data = self.jwt_service.verify_token(request.access_token)
+        if user_data == "Token expired":
+            ack_response.ack.message = "Token expired"
+            return ack_response
+        if user_data == "Invalid token":
+            ack_response.ack.message = "Invalid token"
+            return ack_response
+        db_user_data = self.GetDbUserData(request, context, user_data)
+        if db_user_data == "User Not Found":
+            ack_response.ack.message = "User Not Found"
+            return ack_response
+        
+        ack_response.ack.message = "Request received"
+        yield ack_response
+        
+        response_queue = Queue()
+        correlation_id = str(uuid.uuid4())
+        self.active_requests[correlation_id] = response_queue
+        self.kafka_producer.send('connect-requests', value={
+            'correlation_id': correlation_id,
+            'user_data': db_user_data
+        })
+
     def _start_kafka_consumer(self, bootstrap_servers):
         """Запускает фоновый поток для получения ответов из Kafka"""
         def consume_responses():
