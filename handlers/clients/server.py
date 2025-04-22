@@ -2,6 +2,10 @@ import grpc
 from concurrent import futures
 import time
 from kafka import KafkaProducer, KafkaConsumer
+
+import database.entities
+import database.entities.client
+import database.postgres_client
 from . import client_handler_pb2
 from . import client_handler_pb2_grpc
 from dotenv import load_dotenv
@@ -12,12 +16,16 @@ from services.jwt import JWTService
 import threading
 from queue import Queue
 import uuid
+import database
+
 
 class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
-    def GetDbUserData(self, request, context, user_data):
+    def GetDbUserData(self, request, context, user_data) -> database.entities.client.Client:
         if "telegram_id" in user_data.items():
-            pass
-        return "User Not Found"
+            user = self.client_repo.get_client_by_telegram_id(user_data["telegram_id"])
+            if user != None:
+                return user
+        return None
     
     def GetStatus(self, request, context):
         ack_response = client_handler_pb2.StatusResponse()
@@ -29,8 +37,8 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             ack_response.ack.message = "Invalid token"
             return ack_response
         db_user_data = self.GetDbUserData(request, context, user_data)
-        if db_user_data == "User Not Found":
-            ack_response.ack.message = "User Not Found"
+        if db_user_data == "User not found":
+            ack_response.ack.message = "User not found"
             return ack_response
         
         ack_response.ack.message = "Request received"
@@ -75,14 +83,17 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         user_data = self.jwt_service.verify_token(request.access_token)
         if user_data == "Token expired":
             ack_response.ack.message = "Token expired"
-            return ack_response
+            yield ack_response
+            return
         if user_data == "Invalid token":
             ack_response.ack.message = "Invalid token"
-            return ack_response
+            yield ack_response
+            return
         db_user_data = self.GetDbUserData(request, context, user_data)
-        if db_user_data == "User Not Found":
-            ack_response.ack.message = "User Not Found"
-            return ack_response
+        if db_user_data is None:
+            ack_response.ack.message = "User not found"
+            yield ack_response
+            return
         
         ack_response.ack.message = "Request received"
         yield ack_response
@@ -102,13 +113,16 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     response = response_queue.get(timeout=3)
                     if not response['status']:
                         ack_response.ack.message = "Request failed"
-                        return ack_response
+                        yield ack_response
+                        return
                     ack_response.config.output = response['output']
-                    return ack_response
+                    yield ack_response
+                    return
                 except Queue.Empty:
                     if time.time() - start_time > self.kafka_timeout_seconds:
                         ack_response.ack.message = "Timeout"
-                        return ack_response
+                        yield ack_response
+                        return
                     continue
         finally:
             if correlation_id in self.active_requests:
@@ -119,14 +133,17 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         user_data = self.jwt_service.verify_token(request.access_token)
         if user_data == "Token expired":
             ack_response.ack.message = "Token expired"
-            return ack_response
+            yield ack_response
+            return
         if user_data == "Invalid token":
             ack_response.ack.message = "Invalid token"
-            return ack_response
+            yield ack_response
+            return
         db_user_data = self.GetDbUserData(request, context, user_data)
-        if db_user_data == "User Not Found":
-            ack_response.ack.message = "User Not Found"
-            return ack_response
+        if db_user_data is None:
+            ack_response.ack.message = "User not found"
+            yield ack_response
+            return
         
         ack_response.ack.message = "Request received"
         yield ack_response
@@ -146,13 +163,16 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     response = response_queue.get(timeout=3)
                     if not response['status']:
                         ack_response.ack.message = "Request failed"
-                        return ack_response
+                        yield ack_response
+                        return
                     ack_response.image.image_data = response['image_data']
-                    return ack_response
+                    yield ack_response
+                    return
                 except Queue.Empty:
                     if time.time() - start_time > self.kafka_timeout_seconds:
                         ack_response.ack.message = "Timeout"
-                        return ack_response
+                        yield ack_response
+                        return
                     continue
         finally:
             if correlation_id in self.active_requests:
@@ -163,14 +183,18 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         user_data = self.jwt_service.verify_token(request.access_token)
         if user_data == "Token expired":
             ack_response.ack.message = "Token expired"
-            return ack_response
+            yield ack_response
+            return
         if user_data == "Invalid token":
             ack_response.ack.message = "Invalid token"
-            return ack_response
+            yield ack_response
+            return
         db_user_data = self.GetDbUserData(request, context, user_data)
-        if db_user_data == "User Not Found":
-            ack_response.ack.message = "User Not Found"
-            return ack_response
+        if db_user_data is not None:
+            ack_response.ack.message = "User already exists"
+            yield ack_response
+            return
+        
         
         ack_response.ack.message = "Request received"
         yield ack_response
@@ -189,8 +213,9 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     response = response_queue.get(timeout=3)
                     if not response['status']:
                         ack_response.ack.message = "Request failed"
-                        return ack_response
-
+                        yield ack_response
+                        return
+                    
                     ack_response.info.config = response['config']
                     ack_response.info.image_data = response['image_data']
                     ack_response.info.uuid = response['uuid']
@@ -200,11 +225,13 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     ack_response.info.enabled_status = response['enabled_status']
                     ack_response.info.created_at = response['created_at']
                     ack_response.info.need_to_disable = response['need_to_disable']
-                    return ack_response
+                    yield ack_response
+                    return
                 except Queue.Empty:
                     if time.time() - start_time > self.kafka_timeout_seconds:
                         ack_response.ack.message = "Timeout"
-                        return ack_response
+                        yield ack_response
+                        return
                     continue
         finally:
             if correlation_id in self.active_requests:
@@ -251,7 +278,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         
         threading.Thread(target=consume_responses, daemon=True).start()
 
-    def __init__(self, jwt_service, kafka_timeout_seconds=60):
+    def __init__(self, jwt_service, client_repository: database.postgres_client.ClientRepository,kafka_timeout_seconds=60):
         kafka_bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
         if kafka_bootstrap_servers is None:
             raise ValueError("KAFKA_BOOTSTRAP_SERVERS environment variable is not set")
@@ -259,6 +286,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             bootstrap_servers=kafka_bootstrap_servers,
             value_serializer=lambda v: json.dumps(v).encode('utf-8')
         )
+        self.client_repo = client_repository
         self.active_requests = {}
         self.kafka_timeout_seconds = kafka_timeout_seconds
         self._start_kafka_consumer(kafka_bootstrap_servers) 
