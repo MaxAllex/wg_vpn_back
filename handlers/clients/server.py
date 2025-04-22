@@ -32,14 +32,17 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         user_data = self.jwt_service.verify_token(request.access_token)
         if user_data == "Token expired":
             ack_response.ack.message = "Token expired"
-            return ack_response
+            yield ack_response
+            return
         if user_data == "Invalid token":
             ack_response.ack.message = "Invalid token"
-            return ack_response
+            yield ack_response
+            return
         db_user_data = self.GetDbUserData(request, context, user_data)
-        if db_user_data == "User not found":
+        if db_user_data is None:
             ack_response.ack.message = "User not found"
-            return ack_response
+            yield ack_response
+            return
         
         ack_response.ack.message = "Request received"
         yield ack_response
@@ -59,7 +62,8 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     response = response_queue.get(timeout=3)
                     if not response['status']:
                         ack_response.ack.message = "Request failed"
-                        return ack_response
+                        yield ack_response
+                        return
                     ack_response.info.status = response['status']
                     ack_response.info.output = response['output']
                     ack_response.info.connection_status = response['connection_status']
@@ -68,11 +72,13 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     ack_response.info.last_connection = response['last_connection']
                     ack_response.info.premium_status = response['premium_status']
                     ack_response.info.premium_until = response['premium_until']
-                    return ack_response
+                    yield ack_response
+                    return
                 except Queue.Empty:
                     if time.time() - start_time > self.kafka_timeout_seconds:
                         ack_response.ack.message = "Timeout"
-                        return ack_response
+                        yield ack_response
+                        return
                     continue
         finally:
             if correlation_id in self.active_requests:
