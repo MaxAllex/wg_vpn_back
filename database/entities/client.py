@@ -7,7 +7,7 @@ from pydantic import BaseModel
 class Client(BaseModel):
     id: UUID
     telegram_id: int
-    wg_id: UUID
+    wg_id: str
     has_premium_status: bool
     premium_status_is_valid_until: Optional[datetime]
     config_file: Optional[str]

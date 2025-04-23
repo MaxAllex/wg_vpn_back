@@ -226,17 +226,26 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                         ack_response.ack.message = "Request failed"
                         yield ack_response
                         return
-                    
-                    ack_response.info.config = response['config']
-                    ack_response.info.image_data = response['image_data']
-                    ack_response.info.uuid = response['uuid']
+                    """
+                        "status": True,
+            "wg_id": result["id"],
+            "wg_server": endpoint,
+                    """
+                    ack_response.info.config = ""
+                    ack_response.info.image_data = ""
+                    ack_response.info.uuid = db_user_data.id
                     ack_response.info.wg_id = response['wg_id']
-                    ack_response.info.has_premium_status = response['has_premium_status']
-                    ack_response.info.premium_until = response['premium_until']
-                    ack_response.info.enabled_status = response['enabled_status']
-                    ack_response.info.created_at = response['created_at']
-                    ack_response.info.need_to_disable = response['need_to_disable']
+                    
+                    ack_response.info.has_premium_status = db_user_data.has_premium_status
+                    ack_response.info.premium_until = db_user_data.premium_status_is_valid_unti
+                    ack_response.info.enabled_status = db_user_data.enabled_status
+                    ack_response.info.created_at = db_user_data.created_at
+                    ack_response.info.need_to_disable = db_user_data.need_to_disable
                     yield ack_response
+
+                    self.client_repo.update_single_field(db_user_data.telegram_id, 0, "wg_id", response['wg_id'])
+                    self.client_repo.update_single_field(db_user_data.telegram_id, 0, "wg_server", response['wg_server'])
+                    
                     return
                 except Queue.Empty:
                     if time.time() - start_time > self.kafka_timeout_seconds:
