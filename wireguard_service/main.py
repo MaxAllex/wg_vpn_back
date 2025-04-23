@@ -70,6 +70,12 @@ class WireguardService:
 
     async def get_config_handler(self, user_data, correlation_id):
         endpoint = user_data["wg_server"]
+        if not await self.check_alive(endpoint):
+            start_endpoint = endpoint
+            endpoint = await self.best_endpoint()
+            await self.create_client_handler(user_data, "changed server")
+            self.delete_client(await self.create_session(start_endpoint), start_endpoint, user_data['wg_id'])
+        
         session = await self.create_session(endpoint)
         result = await self.get_config(session, endpoint, user_data['wg_id'])
         await self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {
@@ -79,6 +85,12 @@ class WireguardService:
     
     async def get_qr_handler(self, user_data, correlation_id):
         endpoint = user_data["wg_server"]
+        if not await self.check_alive(endpoint):
+            start_endpoint = endpoint
+            endpoint = await self.best_endpoint()
+            await self.create_client_handler(user_data, "changed server")
+            self.delete_client(await self.create_session(start_endpoint), start_endpoint, user_data['wg_id'])
+            
         session = await self.create_session(endpoint)
         result = await self.get_config(session, endpoint, user_data['wg_id'])
         await self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {

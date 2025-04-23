@@ -256,8 +256,10 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                 try:
                     data = msg.value
                     correlation_id = data['correlation_id']
-                    
-                    if correlation_id in self.active_requests:
+                    if correlation_id == "changed server":
+                        #Сохранение нового пользователя
+                        pass
+                    elif correlation_id in self.active_requests:
                         response_queue = self.active_requests[correlation_id]
                         if 'status_response' in data.keys():
                             response_queue.put(
