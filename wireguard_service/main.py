@@ -251,9 +251,18 @@ class WireguardService:
         }}))
         
         
-
+    async def _process_message(self, topic: str, user_data: dict, correlation_id: str):
+        if topic == 'config-requests':
+            await self.get_config_handler(user_data, correlation_id)
+        elif topic == 'connect-requests':
+            await self.create_client_handler(user_data, correlation_id)
+        elif topic == 'info-requests':
+            await self.get_user_handler(user_data, correlation_id)
+        elif topic == 'qr-requests':
+            await self.get_qr_handler(user_data, correlation_id)
 
     async def _start_kafka_consumer(self):
+        loop = asyncio.get_event_loop()
         """Запускает фоновый поток для получения ответов из Kafka"""
         def consume_responses():
             consumer = KafkaConsumer(
@@ -267,14 +276,11 @@ class WireguardService:
                     data = msg.value
                     correlation_id = data['correlation_id']
                     user_data = data['user_data']
-                    if msg.topic == 'config-requests':
-                        self.get_config_handler(user_data, correlation_id)
-                    elif msg.topic == 'connect-requests':
-                        self.create_client_handler(user_data, correlation_id)
-                    elif msg.topic == 'info-requests':
-                        self.get_user_handler(user_data, correlation_id)
-                    elif msg.topic == 'qr-requests':
-                        self.get_qr_handler(user_data, correlation_id)
+                    task = asyncio.run_coroutine_threadsafe(
+                        self._process_message(msg.topic, user_data, correlation_id),
+                        loop
+                    )
+                    task.result() 
 
                 except Exception as e:
                     logging.error(f"Error processing Kafka message: {e}")
