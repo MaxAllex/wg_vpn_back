@@ -281,8 +281,25 @@ class WireguardService:
 def main():    
     load_dotenv()
     PASSWORD_DATA = {'password': os.getenv('PASSWORD'), 'remember': 'true'}
-
+    kafka_bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
+    if kafka_bootstrap_servers is None:
+        raise ValueError("KAFKA_BOOTSTRAP_SERVERS environment variable is not set")
+    kafka_producer = KafkaProducer(
+        bootstrap_servers=kafka_bootstrap_servers,
+        value_serializer=lambda v: json.dumps(v).encode('utf-8')
+    )
+    endpoints = os.getenv("ENDPOINTS")
+    if endpoints is None:
+        raise ValueError("ENDPOINTS environment variable is not set")
+    endpoints = endpoints.split(",")
     logger = logging.getLogger(__name__)
+    wireguard_service = WireguardService(
+        endpoints=endpoints,
+        kafka_producer=kafka_producer,
+        password_data=PASSWORD_DATA,
+        logger=logger
+    )
+    
 
 
 if __name__ == "__main__":
