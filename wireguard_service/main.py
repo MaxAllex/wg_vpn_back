@@ -6,6 +6,7 @@ from typing import List
 import json
 import aiohttp
 from aiohttp import ClientSession, ClientResponse, ClientError
+from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
 from kafka import KafkaProducer, KafkaConsumer
 import asyncio
@@ -16,7 +17,7 @@ from io import BytesIO
 import datetime
 import pytz
 import database
-
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 class WireguardService:
     def __init__(self, endpoints: List[str], kafka_producer: KafkaProducer,  password_data: dict, logger, client_repository: database.postgres_client.ClientRepository):
@@ -29,7 +30,42 @@ class WireguardService:
         if self.bootstrap_servers is None:
             raise ValueError("KAFKA_BOOTSTRAP_SERVERS environment variable is not set")
     
+
+    async def scheduler_check_traffic(self):
+        db_clients = await self.client_repository.get_all_clients()
+        wg_clients = {}
+        for client in db_clients:
+            if client.wg_server is not None and client.wg_server != "" and client.wg_server not in wg_clients.keys():
+                wg_clients[client.wg_server] = await self.get_clients(await self.create_session(client.wg_server), client.wg_server)
+        
+        for wg_server, clients in wg_clients.items():
+            for client in clients:
+
+    async def scheduler_upload_traffic_for_users(self):
+        pass
+
+    async def scheduler_check_premium_status(self):
+        pass
+
     def run(self):
+        scheduler = AsyncIOScheduler()
+
+        scheduler.add_job(
+            self.scheduler_check_traffic,
+            CronTrigger(minute="*/1", timezone=pytz.timezone("Europe/Moscow")),
+        )
+
+        scheduler.add_job(
+            self.scheduler_upload_traffic_for_users,
+            CronTrigger(day=1, hour=9, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
+        )
+
+        scheduler.add_job(
+            self.scheduler_check_premium_status,
+            CronTrigger(day="*/1", hour=18, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
+        )
+
+        scheduler.start()
         asyncio.run(self._start_kafka_consumer())
 
 
@@ -263,7 +299,6 @@ class WireguardService:
 
     async def _start_kafka_consumer(self):
         loop = asyncio.get_event_loop()
-        """Запускает фоновый поток для получения ответов из Kafka"""
         def consume_responses():
             consumer = KafkaConsumer(
                 bootstrap_servers=self.bootstrap_servers,
@@ -312,6 +347,7 @@ def main():
         client_repository=client_repository
     )
     wireguard_service.run()
+    
     
 
 

@@ -110,7 +110,11 @@ class ClientRepository:
                 enabled_status=client_data['enabled_status'],
                 created_at=client_data['created_at'],
                 need_to_disable=client_data['need_to_disable'],
-                jwt_version=client_data['jwt_version']
+                jwt_version=client_data['jwt_version'],
+
+                used_gigabytes=client_data['used_gigabytes'],
+                max_gigabytes=client_data['max_gigabytes'],
+                last_used_gigabytes=client_data['last_used_gigabytes']
             )
         except Exception as e:
             if retry_count < self.max_retries:
@@ -138,7 +142,10 @@ class ClientRepository:
                 enabled_status=client_data['enabled_status'],
                 created_at=client_data['created_at'],
                 need_to_disable=client_data['need_to_disable'],
-                jwt_version=client_data['jwt_version']
+                jwt_version=client_data['jwt_version'],
+                used_gigabytes=client_data['used_gigabytes'],
+                max_gigabytes=client_data['max_gigabytes'],
+                last_used_gigabytes=client_data['last_used_gigabytes']
             )
         except Exception as e:
             if retry_count < self.max_retries:

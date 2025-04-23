@@ -16,9 +16,10 @@ class Client(BaseModel):
     created_at: Optional[datetime]
     need_to_disable: bool
     wg_server: Optional[str]
+    last_used_gigabytes: float
     used_gigabytes: float
     max_gigabytes: float
-    jwt_version: int #Для того чтобы инвалидировать токены, например, при смене пароля путём +1 к версии
+    jwt_version: int 
 
 
     
