@@ -271,13 +271,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     data = msg.value
                     correlation_id = data['correlation_id']
                     if correlation_id == "changed server":
-                        connect_response = data.get('connect_response',{})
-                        wg_id = connect_response.get('wg_id')
-                        wg_server = connect_response.get('wg_server')
-                        user_id = connect_response.get('id')
-                        user = await self.client_repo.get_client_by_user_id(user_id)
-                        self.client_repo.update_single_field(user.telegram_id, 0, "wg_id", wg_id)
-                        self.client_repo.update_single_field(user.telegram_id, 0, "wg_server", wg_server)
+                        continue
 
 
                     elif correlation_id in self.active_requests:

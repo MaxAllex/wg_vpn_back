@@ -204,8 +204,10 @@ class WireguardService:
         if not await self.check_alive(endpoint):
             start_endpoint = endpoint
             endpoint = await self.best_endpoint()
-            await self.create_client_handler(user_data, "changed server")
+            temp_wg = await self.create_client_handler(user_data, "changed server")
             self.delete_client(await self.create_session(start_endpoint), start_endpoint, user_data['wg_id'])
+            user_data["wg_server"] = endpoint
+            user_data["wg_id"] = temp_wg
         
         session = await self.create_session(endpoint)
         result = await self.get_config(session, endpoint, user_data['wg_id'])
@@ -219,8 +221,10 @@ class WireguardService:
         if not await self.check_alive(endpoint):
             start_endpoint = endpoint
             endpoint = await self.best_endpoint()
-            await self.create_client_handler(user_data, "changed server")
+            temp_wg = await self.create_client_handler(user_data, "changed server")
             self.delete_client(await self.create_session(start_endpoint), start_endpoint, user_data['wg_id'])
+            user_data["wg_server"] = endpoint
+            user_data["wg_id"] = temp_wg
 
         session = await self.create_session(endpoint)
         result = await self.get_config(session, endpoint, user_data['wg_id'])
@@ -233,6 +237,9 @@ class WireguardService:
         endpoint = await self.best_endpoint()
         session = await self.create_session(endpoint)
         result = await self.create_client(session, endpoint, user_data['telegram_id'])
+        if correlation_id == "changed server":
+            await self.client_repository.update_user_data(user_data['telegram_id'], 0, wg_id=result["id"], wg_server=endpoint, last_used_gigabytes=user_data['used_gigabytes'], used_gigabytes=0)
+            return result['id']
         if 'error' in result.keys() and result['error'] != '':
             await self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {
                 "status": False,
