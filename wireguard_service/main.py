@@ -35,7 +35,7 @@ class WireguardService:
         for client in db_clients:
             if client.last_used_gigabytes + client.used_gigabytes > client.max_gigabytes and not client.has_premium_status and client.config_file is not None and client.config_file != "":
                 await self.kafka_producer.send("disable-client", json.dumps({"telegram_id": client.telegram_id, "wg_id": client.wg_id}).encode('utf-8'))
-                await self.client_repository.update_user_data(client.telegram_id, 0, config_file=None, qr_code=None)
+                await self.client_repository.update_user_data(client.telegram_id, 0, config_file=None, qr_code=None, enabled_status=False)
                 await self.delete_client(await self.create_session(client.wg_server), client.wg_server, client.wg_id)
     
     async def scheduler_check_traffic(self):
@@ -57,10 +57,18 @@ class WireguardService:
 
 
     async def scheduler_upload_traffic_for_users(self):
-        pass
+        db_clients = await self.client_repository.get_all_clients()
+        for client in db_clients:
+            await self.client_repository.update_user_data(client.telegram_id, 0, last_used_gigabytes=0, used_gigabytes=0, enabled_status=True)
+        self.kafka_producer.send("upload-traffic", json.dumps({"telegram_id": 0}).encode('utf-8'))
 
     async def scheduler_check_premium_status(self):
-        pass
+        db_clients = await self.client_repository.get_all_clients()
+        for client in db_clients:
+            if client.has_premium_status:
+                await self.kafka_producer.send("disable-client", json.dumps({"telegram_id": client.telegram_id, "wg_id": client.wg_id}).encode('utf-8'))
+                await self.client_repository.update_user_data(client.telegram_id, 0, config_file=None, qr_code=None)
+                await self.delete_client(await self.create_session(client.wg_server), client.wg_server, client.wg_id)
 
     def run(self):
         scheduler = AsyncIOScheduler()
