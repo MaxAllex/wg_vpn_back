@@ -9,12 +9,7 @@ from aiohttp import ClientSession, ClientResponse
 from dotenv import load_dotenv
 from kafka import KafkaProducer, KafkaConsumer
 
-load_dotenv()
-PASSWORD_DATA = {'password': os.getenv('PASSWORD'), 'remember': 'true'}
-
-logger = logging.getLogger(__name__)
-
-
+import asyncio
 async def get_config(session: ClientSession, endpoint: str, client_id: str) -> bytes:
     async with session.get(f"http://{endpoint}:51821/api/wireguard/client/{client_id}/configuration") as response:
         return await response.read()
@@ -58,26 +53,38 @@ class WireguardService:
         self.kafka_producer = kafka_producer
         self.endpoints = endpoints
         self.password_data = password_data
-
-    def _start_kafka_consumer(self, bootstrap_servers):
+        self.bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
+        if self.bootstrap_servers is None:
+            raise ValueError("KAFKA_BOOTSTRAP_SERVERS environment variable is not set")
+        self._start_kafka_consumer()
+    async def get_config(self, user_data, correlation_id):
+        pass
+    def _start_kafka_consumer(self):
         """Запускает фоновый поток для получения ответов из Kafka"""
         def consume_responses():
             consumer = KafkaConsumer(
-                bootstrap_servers=bootstrap_servers,
+                bootstrap_servers=self.bootstrap_servers,
                 group_id='config-gateway-group',
                 auto_offset_reset='earliest',
                 value_deserializer=lambda v: json.loads(v.decode('utf-8')))
-            consumer.subscribe(['config-responses', 'qr-responses', 'info-responses', 'connect-responses'])
+            consumer.subscribe(['config-requests'])
             for msg in consumer:
                 try:
                     data = msg.value
                     correlation_id = data['correlation_id']
-
+                    user_data = data['user_data']
+                    asyncio.run(self.get_config(user_data, correlation_id))
                 except Exception as e:
                     logging.error(f"Error processing Kafka message: {e}")
         
         threading.Thread(target=consume_responses, daemon=True).start()
 
  
-    
-        
+def main():    
+    load_dotenv()
+    PASSWORD_DATA = {'password': os.getenv('PASSWORD'), 'remember': 'true'}
+
+    logger = logging.getLogger(__name__)
+
+if __name__ == "__main__":
+    main()       
