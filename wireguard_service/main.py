@@ -179,20 +179,24 @@ class WireguardService:
         return result
 
     async def best_endpoint(self, timeout: float = 2.0) -> str:
-        tasks = [self.evaluate_endpoint(ep, timeout) for ep in self.endpoints]
-        results = await asyncio.gather(*tasks)
-        
-        alive = [r for r in results if r["alive"]]
-        
-        if not alive:
-            return None
-            
-        alive.sort(key=lambda x: x["score"])
-        
-        for ep in alive:
-            print(f"{ep['endpoint']}: latency={ep['latency']:.3f}s, clients={ep['clients']}, score={ep['score']:.3f}")
-        
-        return alive[0]["endpoint"]
+        try:
+            tasks = [self.evaluate_endpoint(ep, timeout) for ep in self.endpoints]
+            results = await asyncio.gather(*tasks)
+
+            alive = [r for r in results if r["alive"]]
+
+            if not alive:
+                return None
+
+            alive.sort(key=lambda x: x["score"])
+
+            for ep in alive:
+                print(f"{ep['endpoint']}: latency={ep['latency']:.3f}s, clients={ep['clients']}, score={ep['score']:.3f}")
+
+            return alive[0]["endpoint"]
+        except Exception as e:
+            self.logger.error("Ошибка получения лучшего сервера:{e}")
+            return "Failed"
 
     """
         Конец функций для выбора эндпоинта
@@ -204,6 +208,9 @@ class WireguardService:
         if not await self.check_alive(endpoint):
             start_endpoint = endpoint
             endpoint = await self.best_endpoint()
+            if endpoint == "Failed":
+                await self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
+                return
             temp_wg = await self.create_client_handler(user_data, "changed server")
             self.delete_client(await self.create_session(start_endpoint), start_endpoint, user_data['wg_id'])
             user_data["wg_server"] = endpoint
@@ -221,6 +228,9 @@ class WireguardService:
         if not await self.check_alive(endpoint):
             start_endpoint = endpoint
             endpoint = await self.best_endpoint()
+            if endpoint == "Failed":
+                await self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {"status": False}}).encode("utf-8"))
+                return
             temp_wg = await self.create_client_handler(user_data, "changed server")
             self.delete_client(await self.create_session(start_endpoint), start_endpoint, user_data['wg_id'])
             user_data["wg_server"] = endpoint
@@ -235,6 +245,9 @@ class WireguardService:
 
     async def create_client_handler(self, user_data, correlation_id):
         endpoint = await self.best_endpoint()
+        if endpoint == "Failed":
+            await self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {"status": False}}).encode("utf-8"))
+            return
         session = await self.create_session(endpoint)
         result = await self.create_client(session, endpoint, user_data['telegram_id'])
         if correlation_id == "changed server":
@@ -355,7 +368,7 @@ class WireguardService:
                     task.result() 
 
                 except Exception as e:
-                    logging.error(f"Error processing Kafka message: {e}")
+                    self.logger.error(f"Error processing Kafka message: {e}")
         
         threading.Thread(target=consume_responses, daemon=True).start()
 
@@ -389,4 +402,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()       
+    main()
