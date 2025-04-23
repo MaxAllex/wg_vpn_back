@@ -60,15 +60,22 @@ class WireguardService:
         db_clients = await self.client_repository.get_all_clients()
         for client in db_clients:
             await self.client_repository.update_user_data(client.telegram_id, 0, last_used_gigabytes=0, used_gigabytes=0, enabled_status=True)
-        self.kafka_producer.send("upload-traffic", json.dumps({"telegram_id": 0}).encode('utf-8'))
+        await self.kafka_producer.send("upload-traffic", json.dumps({"telegram_id": 0}).encode('utf-8'))
 
     async def scheduler_check_premium_status(self):
         db_clients = await self.client_repository.get_all_clients()
         for client in db_clients:
             if client.has_premium_status:
-                await self.kafka_producer.send("disable-client", json.dumps({"telegram_id": client.telegram_id, "wg_id": client.wg_id}).encode('utf-8'))
-                await self.client_repository.update_user_data(client.telegram_id, 0, config_file=None, qr_code=None)
-                await self.delete_client(await self.create_session(client.wg_server), client.wg_server, client.wg_id)
+                today = datetime.date.today()
+                reminder_date = client.premium_status_is_valid_until.date() - datetime.timedelta(days=1)
+                telegram_id = client.telegram_id
+                if client.premium_status_is_valid_until.date() <= today:
+                    await self.client_repository.update_single_field(telegram_id, "has_premium_status", False)
+                    await self.client_repository.update_single_field(telegram_id, "premium_status_is_valid_until", None)
+                    await self.kafka_producer.send("disable-premium", json.dumps({"telegram_id": telegram_id}).encode('utf-8'))
+                elif client.premium_status_is_valid_until.date() == reminder_date:
+                    await self.kafka_producer.send("premium-reminder", json.dumps({"telegram_id": telegram_id}).encode('utf-8'))
+
 
     def run(self):
         scheduler = AsyncIOScheduler()
