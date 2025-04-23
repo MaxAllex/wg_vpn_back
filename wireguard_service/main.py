@@ -30,7 +30,7 @@ class WireguardService:
         if self.bootstrap_servers is None:
             raise ValueError("KAFKA_BOOTSTRAP_SERVERS environment variable is not set")
     
-
+    
     async def scheduler_check_traffic(self):
         db_clients = await self.client_repository.get_all_clients()
         wg_clients = {}
@@ -38,8 +38,16 @@ class WireguardService:
             if client.wg_server is not None and client.wg_server != "" and client.wg_server not in wg_clients.keys():
                 wg_clients[client.wg_server] = await self.get_clients(await self.create_session(client.wg_server), client.wg_server)
         
-        for wg_server, clients in wg_clients.items():
+        for clients in wg_clients.values():
             for client in clients:
+                for db_client in db_clients:
+                    if db_client.wg_id == client['id']:
+                        transfer_tx = client.get("transferTx", 0)
+                        gigabytes_value = self.bytes_to_gb(transfer_tx) if transfer_tx else 0
+                        self.client_repository.update_single_field(db_client.telegram_id, 0, "gigabytes", gigabytes_value)
+                        self.client_repository.update_single_field(db_client.telegram_id, 0, "latest_handshake", client['latestHandshakeAt'])
+                        break
+
 
     async def scheduler_upload_traffic_for_users(self):
         pass

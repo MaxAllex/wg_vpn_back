@@ -114,7 +114,8 @@ class ClientRepository:
 
                 used_gigabytes=client_data['used_gigabytes'],
                 max_gigabytes=client_data['max_gigabytes'],
-                last_used_gigabytes=client_data['last_used_gigabytes']
+                last_used_gigabytes=client_data['last_used_gigabytes'],
+                latest_handshake=client_data['latest_handshake']
             )
         except Exception as e:
             if retry_count < self.max_retries:
@@ -145,7 +146,8 @@ class ClientRepository:
                 jwt_version=client_data['jwt_version'],
                 used_gigabytes=client_data['used_gigabytes'],
                 max_gigabytes=client_data['max_gigabytes'],
-                last_used_gigabytes=client_data['last_used_gigabytes']
+                last_used_gigabytes=client_data['last_used_gigabytes'],
+                latest_handshake=client_data['latest_handshake']
             )
         except Exception as e:
             if retry_count < self.max_retries:

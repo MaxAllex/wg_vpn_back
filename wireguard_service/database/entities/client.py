@@ -19,7 +19,8 @@ class Client(BaseModel):
     last_used_gigabytes: float
     used_gigabytes: float
     max_gigabytes: float
-    jwt_version: int 
+    jwt_version: int
+    latest_handshake: Optional[datetime]
 
 
     
