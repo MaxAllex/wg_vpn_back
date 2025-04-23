@@ -19,6 +19,6 @@ class Client(BaseModel):
 
 
     
-# Метод для преобразования в словарь
-def to_dict(self):
-    return self.model_dump()
+    # Метод для преобразования в словарь
+    def to_dict(self):
+        return self.model_dump()
