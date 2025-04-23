@@ -9,6 +9,7 @@ from aiohttp import ClientSession, ClientResponse
 from dotenv import load_dotenv
 from kafka import KafkaProducer, KafkaConsumer
 import asyncio
+import base64 as b64
 
 
 class WireguardService:
@@ -47,7 +48,7 @@ class WireguardService:
     async def create_session(self, endpoint: str):
         session = aiohttp.ClientSession()
         try:
-            async with session.post(f"http://{endpoint}:51821/api/session", json=PASSWORD_DATA) as response:
+            async with session.post(f"http://{endpoint}:51821/api/session", json=self.password_data) as response:
                 cookies = response.cookies
 
             session.cookie_jar.update_cookies({key: morsel.value for key, morsel in cookies.items()})
@@ -62,6 +63,12 @@ class WireguardService:
 
     async def get_config_handler(self, user_data, correlation_id):
         endpoint = await self.best_endpoint()
+        session = await self.create_session(endpoint)
+        result = await self.get_config(session, endpoint, user_data['wg_id'])
+        await self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {
+            "status": True,
+            "output": b64.b64encode(result)
+        }}).encode('utf-8'))
 
     async def _start_kafka_consumer(self):
         """Запускает фоновый поток для получения ответов из Kafka"""
