@@ -15,6 +15,7 @@ import json
 from services.jwt import JWTService
 import threading
 from queue import Queue
+import asyncio
 import uuid
 import database
 
@@ -22,7 +23,7 @@ import database
 class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
     def GetDbUserData(self, request, context, user_data) -> database.entities.client.Client:
         if "telegram_id" in user_data.items():
-            user = self.client_repo.get_client_by_telegram_id(user_data["telegram_id"])
+            user = asyncio.run(self.client_repo.get_client_by_telegram_id(user_data["telegram_id"]))
             if user != None:
                 return user
         return None
@@ -206,9 +207,17 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             yield ack_response
             return
         
+        new_client_data = {
+            'telegram_id': user_data["telegram_id"],
+        }
+
+        asyncio.run(self.client_repo.save_client(new_client_data))
+
+        db_user_data = self.GetDbUserData(request, context, user_data)
         
         ack_response.ack.message = "Request received"
         yield ack_response
+        
         
         response_queue = Queue()
         correlation_id = str(uuid.uuid4())
@@ -226,11 +235,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                         ack_response.ack.message = "Request failed"
                         yield ack_response
                         return
-                    """
-                        "status": True,
-            "wg_id": result["id"],
-            "wg_server": endpoint,
-                    """
+
                     ack_response.info.config = ""
                     ack_response.info.image_data = ""
                     ack_response.info.uuid = db_user_data.id

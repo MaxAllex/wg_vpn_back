@@ -204,6 +204,9 @@ class WireguardService:
 
 
     async def get_config_handler(self, user_data, correlation_id):
+        if user_data['last_used_gigabytes'] + user_data['used_gigabytes'] > user_data['max_gigabytes']:
+            await self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
+            return
         endpoint = user_data["wg_server"]
         if not await self.check_alive(endpoint):
             start_endpoint = endpoint
@@ -224,6 +227,9 @@ class WireguardService:
         }}).encode('utf-8'))
     
     async def get_qr_handler(self, user_data, correlation_id):
+        if user_data['last_used_gigabytes'] + user_data['used_gigabytes'] > user_data['max_gigabytes']:
+            await self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
+            return
         endpoint = user_data["wg_server"]
         if not await self.check_alive(endpoint):
             start_endpoint = endpoint
