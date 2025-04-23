@@ -8,44 +8,7 @@ import aiohttp
 from aiohttp import ClientSession, ClientResponse
 from dotenv import load_dotenv
 from kafka import KafkaProducer, KafkaConsumer
-
 import asyncio
-async def get_config(session: ClientSession, endpoint: str, client_id: str) -> bytes:
-    async with session.get(f"http://{endpoint}:51821/api/wireguard/client/{client_id}/configuration") as response:
-        return await response.read()
-
-
-async def create_client(session: ClientSession, endpoint: str, user_name: str) -> dict:
-    async with session.post(f"http://{endpoint}:51821/api/wireguard/client", json={'name': user_name}) as response:
-        return await response.json()
-
-
-async def get_clients(session: ClientSession, endpoint: str) -> dict:
-    async with session.get(f"http://{endpoint}:51821/api/wireguard/client") as response:
-        return await response.json()
-
-
-async def action_with_client(session: ClientSession, endpoint: str, client_id: str, action: str) -> dict:
-    async with session.post(f"http://{endpoint}:51821/api/wireguard/client/{client_id}/{action}") as response:
-        return response.json()
-
-
-async def delete_client(session: ClientSession, endpoint: str, client_id: str) -> dict:
-    async with session.delete(f"http://{endpoint}:51821/api/wireguard/client/{client_id}") as response:
-        return response.json()
-
-
-@asynccontextmanager
-async def create_session(endpoint: str):
-    session = aiohttp.ClientSession()
-    try:
-        async with session.post(f"http://{endpoint}:51821/api/session", json=PASSWORD_DATA) as response:
-            cookies = response.cookies
-
-        session.cookie_jar.update_cookies({key: morsel.value for key, morsel in cookies.items()})
-        yield session
-    finally:
-        await session.close()
 
 
 class WireguardService:
@@ -56,10 +19,50 @@ class WireguardService:
         self.bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
         if self.bootstrap_servers is None:
             raise ValueError("KAFKA_BOOTSTRAP_SERVERS environment variable is not set")
-        self._start_kafka_consumer()
-    async def get_config(self, user_data, correlation_id):
+        asyncio.run(self._start_kafka_consumer())
+    async def get_config(session: ClientSession, endpoint: str, client_id: str) -> bytes:
+        async with session.get(f"http://{endpoint}:51821/api/wireguard/client/{client_id}/configuration") as response:
+            return await response.read()
+    async def create_client(session: ClientSession, endpoint: str, user_name: str) -> dict:
+        async with session.post(f"http://{endpoint}:51821/api/wireguard/client", json={'name': user_name}) as response:
+            return await response.json()
+
+
+    async def get_clients(session: ClientSession, endpoint: str) -> dict:
+        async with session.get(f"http://{endpoint}:51821/api/wireguard/client") as response:
+            return await response.json()
+
+
+    async def action_with_client(session: ClientSession, endpoint: str, client_id: str, action: str) -> dict:
+        async with session.post(f"http://{endpoint}:51821/api/wireguard/client/{client_id}/{action}") as response:
+            return response.json()
+
+
+    async def delete_client(session: ClientSession, endpoint: str, client_id: str) -> dict:
+        async with session.delete(f"http://{endpoint}:51821/api/wireguard/client/{client_id}") as response:
+            return response.json()
+
+
+    @asynccontextmanager
+    async def create_session(endpoint: str):
+        session = aiohttp.ClientSession()
+        try:
+            async with session.post(f"http://{endpoint}:51821/api/session", json=PASSWORD_DATA) as response:
+                cookies = response.cookies
+
+            session.cookie_jar.update_cookies({key: morsel.value for key, morsel in cookies.items()})
+            yield session
+        finally:
+            await session.close()
+
+
+    
+    async def best_endpoint(self):
         pass
-    def _start_kafka_consumer(self):
+
+    async def get_config(self, user_data, correlation_id):
+        endpoint = await self.best_endpoint()        
+    async def _start_kafka_consumer(self):
         """Запускает фоновый поток для получения ответов из Kafka"""
         def consume_responses():
             consumer = KafkaConsumer(
@@ -73,7 +76,8 @@ class WireguardService:
                     data = msg.value
                     correlation_id = data['correlation_id']
                     user_data = data['user_data']
-                    asyncio.run(self.get_config(user_data, correlation_id))
+                    self.get_config(user_data, correlation_id)
+
                 except Exception as e:
                     logging.error(f"Error processing Kafka message: {e}")
         
@@ -85,6 +89,7 @@ def main():
     PASSWORD_DATA = {'password': os.getenv('PASSWORD'), 'remember': 'true'}
 
     logger = logging.getLogger(__name__)
+
 
 if __name__ == "__main__":
     main()       
