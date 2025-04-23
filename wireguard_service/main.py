@@ -264,8 +264,8 @@ class WireguardService:
                     user_data = data['user_data']
                     if msg.topic == 'config-requests':
                         self.get_config_handler(user_data, correlation_id)
-                    elif msg.topic == 'connect_requests':
-                        pass
+                    elif msg.topic == 'connect-requests':
+                        self.create_client_handler(user_data, correlation_id)
                     elif msg.topic == 'info-requests':
                         self.get_user_handler(user_data, correlation_id)
                     elif msg.topic == 'qr-requests':
