@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from typing import List
 import json
 import aiohttp
-from aiohttp import ClientSession, ClientResponse
+from aiohttp import ClientSession, ClientResponse, ClientError
 from dotenv import load_dotenv
 from kafka import KafkaProducer, KafkaConsumer
 import asyncio
@@ -28,25 +28,26 @@ class WireguardService:
 
 
     async def get_config(self, session: ClientSession, endpoint: str, client_id: str) -> bytes:
-        async with session.get(f"http://{endpoint}:51821/api/wireguard/client/{client_id}/configuration") as response:
+        async with session.get(f"http://{endpoint}/api/wireguard/client/{client_id}/configuration") as response:
             return await response.read()
+    
     async def create_client(self, session: ClientSession, endpoint: str, user_name: str) -> dict:
-        async with session.post(f"http://{endpoint}:51821/api/wireguard/client", json={'name': user_name}) as response:
+        async with session.post(f"http://{endpoint}/api/wireguard/client", json={'name': user_name}) as response:
             return await response.json()
 
 
     async def get_clients(self, session: ClientSession, endpoint: str) -> dict:
-        async with session.get(f"http://{endpoint}:51821/api/wireguard/client") as response:
+        async with session.get(f"http://{endpoint}/api/wireguard/client") as response:
             return await response.json()
 
 
     async def action_with_client(self, session: ClientSession, endpoint: str, client_id: str, action: str) -> dict:
-        async with session.post(f"http://{endpoint}:51821/api/wireguard/client/{client_id}/{action}") as response:
+        async with session.post(f"http://{endpoint}/api/wireguard/client/{client_id}/{action}") as response:
             return response.json()
 
 
     async def delete_client(self, session: ClientSession, endpoint: str, client_id: str) -> dict:
-        async with session.delete(f"http://{endpoint}:51821/api/wireguard/client/{client_id}") as response:
+        async with session.delete(f"http://{endpoint}/api/wireguard/client/{client_id}") as response:
             return response.json()
 
 
@@ -54,7 +55,7 @@ class WireguardService:
     async def create_session(self, endpoint: str):
         session = aiohttp.ClientSession()
         try:
-            async with session.post(f"http://{endpoint}:51821/api/session", json=self.password_data) as response:
+            async with session.post(f"http://{endpoint}/api/session", json=self.password_data) as response:
                 cookies = response.cookies
 
             session.cookie_jar.update_cookies({key: morsel.value for key, morsel in cookies.items()})
@@ -120,6 +121,15 @@ class WireguardService:
         except Exception as e:
             self.logger.error(f"Ошибка при генерации QR-кода: {e}")
             raise
+    
+    async def check_alive(self, endpoint):
+        url = f"http://{endpoint}/api/wireguard/client"
+        try:
+            async with ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+                async with session.get(url) as response:
+                    return response.status < 500
+        except (ClientError, asyncio.TimeoutError):
+            return False
 
     async def get_qr_handler(self, user_data, correlation_id):
         endpoint = user_data["wg_server"]
