@@ -15,17 +15,21 @@ from qrcode.main import QRCode
 from io import BytesIO
 import datetime
 import pytz
+import database
 
 
 class WireguardService:
-    def __init__(self, endpoints: List[str], kafka_producer: KafkaProducer,  password_data: dict, logger):
+    def __init__(self, endpoints: List[str], kafka_producer: KafkaProducer,  password_data: dict, logger, client_repository: database.postgres_client.ClientRepository):
         self.logger = logger
         self.kafka_producer = kafka_producer
         self.endpoints = endpoints
         self.password_data = password_data
         self.bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
+        self.client_repository = client_repository
         if self.bootstrap_servers is None:
             raise ValueError("KAFKA_BOOTSTRAP_SERVERS environment variable is not set")
+    
+    def run(self):
         asyncio.run(self._start_kafka_consumer())
 
 
@@ -194,7 +198,7 @@ class WireguardService:
             return str(img_io)
         except Exception as e:
             self.logger.error(f"Ошибка при генерации QR-кода: {e}")
-            raise
+
     
     async def check_alive(self, endpoint):
         url = f"http://{endpoint}/api/wireguard/client"
@@ -277,7 +281,7 @@ class WireguardService:
         
         threading.Thread(target=consume_responses, daemon=True).start()
 
- 
+
 def main():    
     load_dotenv()
     PASSWORD_DATA = {'password': os.getenv('PASSWORD'), 'remember': 'true'}
@@ -293,12 +297,15 @@ def main():
         raise ValueError("ENDPOINTS environment variable is not set")
     endpoints = endpoints.split(",")
     logger = logging.getLogger(__name__)
+    client_repository = database.postgres_client.ClientRepository()
     wireguard_service = WireguardService(
         endpoints=endpoints,
         kafka_producer=kafka_producer,
         password_data=PASSWORD_DATA,
-        logger=logger
+        logger=logger,
+        client_repository=client_repository
     )
+    wireguard_service.run()
     
 
 
