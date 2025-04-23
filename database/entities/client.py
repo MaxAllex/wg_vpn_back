@@ -15,6 +15,7 @@ class Client(BaseModel):
     enabled_status: bool
     created_at: Optional[datetime]
     need_to_disable: bool
+    wg_server: Optional[str]
     jwt_version: int #Для того чтобы инвалидировать токены, например, при смене пароля путём +1 к версии
 
 

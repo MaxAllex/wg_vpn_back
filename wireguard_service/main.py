@@ -10,10 +10,14 @@ from dotenv import load_dotenv
 from kafka import KafkaProducer, KafkaConsumer
 import asyncio
 import base64 as b64
+import qrcode
+from qrcode.main import QRCode
+from io import BytesIO
 
 
 class WireguardService:
-    def __init__(self, endpoints: List[str], kafka_producer: KafkaProducer,  password_data: dict):
+    def __init__(self, endpoints: List[str], kafka_producer: KafkaProducer,  password_data: dict, logger):
+        self.logger = logger
         self.kafka_producer = kafka_producer
         self.endpoints = endpoints
         self.password_data = password_data
@@ -21,6 +25,8 @@ class WireguardService:
         if self.bootstrap_servers is None:
             raise ValueError("KAFKA_BOOTSTRAP_SERVERS environment variable is not set")
         asyncio.run(self._start_kafka_consumer())
+
+
     async def get_config(self, session: ClientSession, endpoint: str, client_id: str) -> bytes:
         async with session.get(f"http://{endpoint}:51821/api/wireguard/client/{client_id}/configuration") as response:
             return await response.read()
@@ -62,13 +68,67 @@ class WireguardService:
         pass
 
     async def get_config_handler(self, user_data, correlation_id):
-        endpoint = await self.best_endpoint()
+        endpoint = user_data["wg_server"]
         session = await self.create_session(endpoint)
         result = await self.get_config(session, endpoint, user_data['wg_id'])
         await self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {
             "status": True,
             "output": b64.b64encode(result)
         }}).encode('utf-8'))
+    
+    async def get_qr_handler(self, user_data, correlation_id):
+        endpoint = user_data["wg_server"]
+        session = await self.create_session(endpoint)
+        result = await self.get_config(session, endpoint, user_data['wg_id'])
+        await self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
+            "status": True,
+            "output": b64.b64encode(self.get_qr_code(result))
+        }}))
+
+    async def create_client_handler(self, user_data, correlation_id):
+        endpoint = await self.best_endpoint()
+        session = await self.create_session(endpoint)
+        result = await self.create_client(session, endpoint, user_data['telegram_id'])
+        if 'error' in result.keys() and result['error'] != '':
+            await self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {
+                "status": False,
+            }}))
+        await self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {
+            "status": True,
+            "wg_id": result["id"],
+            "wg_server": endpoint,
+        }}))
+
+    def get_qr_code(self, configuration):
+        """Генерация QR-кода для конфигурации."""
+        try:
+            qr = QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=2,
+            )
+
+            qr.add_data(configuration)
+            qr.make(fit=True)
+
+            img = qr.make_image(fill_color="black", back_color="white")
+            img_io = BytesIO()
+            img.save(img_io, "PNG")
+            img_io.seek(0)
+            return str(img_io)
+        except Exception as e:
+            self.logger.error(f"Ошибка при генерации QR-кода: {e}")
+            raise
+
+    async def get_qr_handler(self, user_data, correlation_id):
+        endpoint = user_data["wg_server"]
+        session = await self.create_session(endpoint)
+        result = await self.get_config(session, endpoint, user_data['wg_id'])
+        await self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
+            "status": True,
+            "output": b64.b64encode(result)
+        }}))
 
     async def _start_kafka_consumer(self):
         """Запускает фоновый поток для получения ответов из Kafka"""
@@ -78,13 +138,20 @@ class WireguardService:
                 group_id='config-gateway-group',
                 auto_offset_reset='earliest',
                 value_deserializer=lambda v: json.loads(v.decode('utf-8')))
-            consumer.subscribe(['config-requests'])
+            consumer.subscribe(['config-requests','connect_requests', "status-requests", "qr-requests"])
             for msg in consumer:
                 try:
                     data = msg.value
                     correlation_id = data['correlation_id']
                     user_data = data['user_data']
-                    self.get_config_handler(user_data, correlation_id)
+                    if msg.topic == 'config-requests':
+                        self.get_config_handler(user_data, correlation_id)
+                    elif msg.topic == 'connect_requests':
+                        pass
+                    elif msg.topic == 'status-requests':
+                        pass
+                    elif msg.topic == 'qr-requests':
+                        self.get_qr_handler(user_data, correlation_id)
 
                 except Exception as e:
                     logging.error(f"Error processing Kafka message: {e}")
