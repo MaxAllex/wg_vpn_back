@@ -61,17 +61,22 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                 try:
                     response = response_queue.get(timeout=3)
                     if not response['status']:
+                        if response['output'] == "Client not found":
+                            ack_response.ack.message = "User not found"
+                            yield ack_response
+                            return
                         ack_response.ack.message = "Request failed"
                         yield ack_response
                         return
-                    ack_response.info.status = response['status']
-                    ack_response.info.output = response['output']
-                    ack_response.info.connection_status = response['connection_status']
-                    ack_response.info.created_at = response['created_at']
+                    
+                    ack_response.info.status = True
+                    ack_response.info.output = ""
+                    ack_response.info.connection_status = db_user_data.connection_status
+                    ack_response.info.created_at = db_user_data.created_at
                     ack_response.info.gigabytes = response['gigabytes']
                     ack_response.info.last_connection = response['last_connection']
-                    ack_response.info.premium_status = response['premium_status']
-                    ack_response.info.premium_until = response['premium_until']
+                    ack_response.info.premium_status = db_user_data.has_premium_status
+                    ack_response.info.premium_until = db_user_data.premium_status_is_valid_until
                     yield ack_response
                     return
                 except Queue.Empty:

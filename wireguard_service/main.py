@@ -14,6 +14,8 @@ import qrcode
 from qrcode.main import QRCode
 from io import BytesIO
 import datetime
+import pytz
+
 
 class WireguardService:
     def __init__(self, endpoints: List[str], kafka_producer: KafkaProducer,  password_data: dict, logger):
@@ -211,6 +213,41 @@ class WireguardService:
             "output": b64.b64encode(result)
         }}))
 
+
+    def bytes_to_db(self, bytes_value):
+        gb_value = bytes_value / 1_000_000_000  # 1 ГБ = 10^9 байт
+        return round(gb_value, 2)
+    
+
+    async def get_user_handler(self, user_data, correlation_id):
+        endpoint = user_data["wg_server"]
+        wg_id = user_data['wg_id']
+        session = await self.create_session(endpoint)
+        clients = await self.get_clients(session, endpoint)
+        client_data = next((c for c in clients if c["id"] == str(wg_id)), None)
+        if not client_data:
+            self.kafka_producer.send('info-responses', value=json.dumps({'correlation_id': correlation_id, 'status_response': {
+                "status": False,
+                "output": "Client not found"
+            }}))
+            return
+        latest_handshake_at = client_data.get("latestHandshakeAt")
+        if latest_handshake_at:
+            latest_handshake_at = datetime.strptime(latest_handshake_at, "%Y-%m-%dT%H:%M:%S.%fZ")
+        else:
+            latest_handshake_at = datetime.strptime("1970-01-01T00:00:00.000Z", "%Y-%m-%dT%H:%M:%S.%fZ")
+        transfer_tx = client_data.get("transferTx", 0)
+        gigabytes_value = self.bytes_to_gb(transfer_tx) if transfer_tx else 0
+
+        await self.kafka_producer.send('info-responses', value=json.dumps({'correlation_id': correlation_id, 'status_response': {
+            "status": True,
+            "gigabytes": gigabytes_value,
+            "last_connection": latest_handshake_at
+        }}))
+        
+        
+
+
     async def _start_kafka_consumer(self):
         """Запускает фоновый поток для получения ответов из Kafka"""
         def consume_responses():
@@ -229,8 +266,8 @@ class WireguardService:
                         self.get_config_handler(user_data, correlation_id)
                     elif msg.topic == 'connect_requests':
                         pass
-                    elif msg.topic == 'status-requests':
-                        pass
+                    elif msg.topic == 'info-requests':
+                        self.get_user_handler(user_data, correlation_id)
                     elif msg.topic == 'qr-requests':
                         self.get_qr_handler(user_data, correlation_id)
 
