@@ -6,7 +6,7 @@ import os
 from dotenv import load_dotenv
 
 from database.entities.client import Client
-
+from uuid import UUID
 
 class ClientRepository:
     def __init__(self, max_retries: int = 3):
@@ -115,6 +115,34 @@ class ClientRepository:
         except Exception as e:
             if retry_count < self.max_retries:
                 return await self.get_client_by_telegram_id(telegram_id, retry_count + 1)
+            self.logger.error(f"Error getting client by telegram_id: {e}")
+            return None
+        finally:
+            await conn.close()    
+
+    async def get_client_by_user_id(self, id:UUID, retry_count: int = 0) -> Client:
+        conn = await self.connect()
+        try:
+            client = await conn.fetch("SELECT * FROM users WHERE id = $1", id)
+            if len(client) == 0:
+                return None
+            client_data = client[0]
+            return Client(
+                id=client_data['id'],
+                telegram_id=client_data['telegram_id'],
+                wg_id=client_data['wg_id'],
+                has_premium_status=client_data['has_premium_status'],
+                premium_status_is_valid_until=client_data['premium_status_is_valid_until'],
+                config_file=client_data['config_file'],
+                qr_code=client_data['qr_code'],
+                enabled_status=client_data['enabled_status'],
+                created_at=client_data['created_at'],
+                need_to_disable=client_data['need_to_disable'],
+                jwt_version=client_data['jwt_version']
+            )
+        except Exception as e:
+            if retry_count < self.max_retries:
+                return await self.get_client_by_user_id(id, retry_count + 1)
             self.logger.error(f"Error getting client by telegram_id: {e}")
             return None
         finally:

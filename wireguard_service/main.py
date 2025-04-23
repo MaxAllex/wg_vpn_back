@@ -169,6 +169,7 @@ class WireguardService:
             }}))
         await self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {
             "status": True,
+            "id": user_data['id'],
             "wg_id": result["id"],
             "wg_server": endpoint,
         }}))
@@ -256,7 +257,7 @@ class WireguardService:
                 group_id='config-gateway-group',
                 auto_offset_reset='earliest',
                 value_deserializer=lambda v: json.loads(v.decode('utf-8')))
-            consumer.subscribe(['config-requests','connect_requests', "status-requests", "qr-requests"])
+            consumer.subscribe(['config-requests','connect-requests', "status-requests", "qr-requests"])
             for msg in consumer:
                 try:
                     data = msg.value
