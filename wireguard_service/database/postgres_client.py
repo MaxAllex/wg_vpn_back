@@ -78,6 +78,39 @@ class ClientRepository:
         finally:
             await self.close(conn)
         
+
+    async def get_client_by_app_token(self, app_token: str, retry_count: int = 0) -> Client:
+        conn = await self.connect()
+        try:
+            client = await conn.fetch("SELECT * FROM users WHERE app_token = $1", app_token)
+            if len(client) == 0:
+                return None
+            client_data = client[0]
+            return Client(
+                id=client_data['id'],
+                telegram_id=client_data['telegram_id'],
+                wg_id=client_data['wg_id'],
+                has_premium_status=client_data['has_premium_status'],
+                premium_status_is_valid_until=client_data['premium_status_is_valid_until'],
+                config_file=client_data['config_file'],
+                qr_code=client_data['qr_code'],
+                enabled_status=client_data['enabled_status'],
+                created_at=client_data['created_at'],
+                need_to_disable=client_data['need_to_disable'],
+                jwt_version=client_data['jwt_version'],
+
+                used_gigabytes=client_data['used_gigabytes'],
+                max_gigabytes=client_data['max_gigabytes'],
+                last_used_gigabytes=client_data['last_used_gigabytes']
+            )
+        except Exception as e:
+            if retry_count < self.max_retries:
+                return await self.get_client_by_app_token(app_token, retry_count + 1)
+            self.logger.error(f"Error getting client by telegram_id: {e}")
+            return None
+        finally:
+            await conn.close()   
+
     async def get_all_clients(self, retry_count: int = 0) -> list[Client]:
         try:
             conn = await self.connect()

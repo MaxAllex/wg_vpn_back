@@ -26,6 +26,8 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             user = asyncio.run(self.client_repo.get_client_by_telegram_id(user_data["telegram_id"]))
             if user != None:
                 return user
+        if "token" in user_data.items():
+            user
         return None
     
     def GetStatus(self, request, context):

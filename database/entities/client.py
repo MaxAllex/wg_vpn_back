@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 class Client(BaseModel):
     id: UUID
-    telegram_id: int
+    telegram_id: Optional[int]
     wg_id: str
     has_premium_status: bool
     premium_status_is_valid_until: Optional[datetime]
@@ -21,6 +21,7 @@ class Client(BaseModel):
     max_gigabytes: float
     jwt_version: int
     latest_handshake: Optional[datetime]
+    app_token: Optional[str]
 
 
     
