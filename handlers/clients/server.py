@@ -26,8 +26,10 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             user = asyncio.run(self.client_repo.get_client_by_telegram_id(user_data["telegram_id"]))
             if user != None:
                 return user
-        if "token" in user_data.items():
-            user
+        if "app_token" in user_data.items():
+            user = asyncio.run(self.client_repo.get_client_by_app_token(user_data["telegram_id"]))
+            if user != None:
+                return user
         return None
     
     def GetStatus(self, request, context):
@@ -208,11 +210,15 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             ack_response.ack.message = "User already exists"
             yield ack_response
             return
-        
-        new_client_data = {
-            'telegram_id': user_data["telegram_id"],
-        }
-
+        new_client_data = {}
+        if user_data.get("telegram_id") is not None:
+            new_client_data["telegram_id"] = user_data["telegram_id"]
+        if user_data.get("app_token") is not None:
+            new_client_data["app_token"] = user_data["app_token"]
+        if new_client_data == {}:
+            ack_response.ack.message = "Invalid token"
+            yield ack_response
+            return
         asyncio.run(self.client_repo.save_client(new_client_data))
 
         db_user_data = self.GetDbUserData(request, context, user_data)
