@@ -42,21 +42,19 @@ TARIFFS = {
 
 
 class PaymentProcessor:
-    async def precheckout_callback(self, user_data):
+    async def precheckout_callback(self, user_data, query):
         """Подтверждение предварительного платежа"""
         try:
-            query = update.pre_checkout_query
             # Проверка, что payload существует в TARIFFS
-            if query.invoice_payload not in TARIFFS:
+            if query not in TARIFFS:
+                self.kafka_producer.send("payment-service", {"type": "precheckout_failed", "payload": query, "user_data": user_data})
                 logger.error(f"Неизвестный payload: {query.invoice_payload}. Доступные: {list(TARIFFS.keys())}")
-                await query.answer(ok=False, error_message="Платеж завершился с ошибкой. Обратитесь в поддержку /support.")
             else:
-                await query.answer(ok=True)
+                self.kafka_producer.send("payment-service", {"type": "precheckout_success", "payload": query, "user_data": user_data})
                 logger.info(f"Предварительная обработка платежа прошла успешно для {query.invoice_payload}")
         except Exception as e:
             traceback.print_exc()
-            await update.message.reply_text(
-                "Ошибка при обработке успешного платежа. \nОбратитесь в поддержку /support")
+            self.kafka_producer.send("payment-service", {"type": "precheckout_failed", "payload": query, "user_data": user_data})
             logger.error(f"Ошибка при обработке precheckout callback: {e}")
             
     async def successful_payment_callback(self, user_data):
