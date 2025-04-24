@@ -190,7 +190,7 @@ class ClientRepository:
         finally:
             await conn.close()     
 
-    async def update_user_data(self, telegram_id, retry_count , **kwargs):
+    async def update_user_data(self, uuid, retry_count , **kwargs):
         if not kwargs:
             self.logger.error("Нет данных для обновления")
             return
@@ -198,14 +198,14 @@ class ClientRepository:
             conn = await self.connect()
 
             set_clause = ", ".join([f"{key} = ${i + 1}" for i, key in enumerate(kwargs.keys())])
-            values = list(kwargs.values()) + [telegram_id]
+            values = list(kwargs.values()) + [uuid]
 
-            query = f"UPDATE users SET {set_clause} WHERE telegram_id = ${len(values)};"
+            query = f"UPDATE users SET {set_clause} WHERE id = ${len(values)};"
             await conn.execute(query, *values)
-            self.logger.info(f"Обновлены поля {list(kwargs.keys())} у пользователя {telegram_id}")
+            self.logger.info(f"Обновлены поля {list(kwargs.keys())} у пользователя {uuid}")
         except Exception as e:
             if retry_count < self.max_retries:
-                return await self.update_user_data(telegram_id, retry_count + 1, **kwargs)
+                return await self.update_user_data(uuid, retry_count + 1, **kwargs)
             self.logger.error(f"Error updating user data: {e}")
         finally:
             await conn.close()
@@ -213,16 +213,16 @@ class ClientRepository:
 
 
 
-    async def update_single_field(self, telegram_id,retry_count, field, value):
+    async def update_single_field(self, uuid,retry_count, field, value):
         try:
             conn = await self.connect()
         
-            query = f"UPDATE users SET {field} = $1 WHERE telegram_id = $2;"
-            await conn.execute(query, value, telegram_id)
-            self.logger.info(f"Поле {field} у пользователя {telegram_id} обновлено!")
+            query = f"UPDATE users SET {field} = $1 WHERE id = $2;"
+            await conn.execute(query, value, uuid)
+            self.logger.info(f"Поле {field} у пользователя {uuid} обновлено!")
         except Exception as e:
             if retry_count < self.max_retries:
-                return await self.update_single_field(telegram_id, retry_count + 1, field, value)
+                return await self.update_single_field(uuid, retry_count + 1, field, value)
             self.logger.error(f"Error updating single field: {e}")
         finally:
             await conn.close()
