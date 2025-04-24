@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 from datetime import datetime
 from utils import Utils
 import threading
+import database
+
 logger = logging.getLogger(__name__)
 load_dotenv()
 PROVIDER_TOKEN = os.getenv("PROVIDER_TOKEN")
@@ -164,6 +166,15 @@ class PaymentProcessor:
                 "Ошибка при обработке тарифа. \nОбратитесь в поддержку"
             )
             logger.error(f"Ошибка при обработке тарифа {tariff_key}: {e}")
+    def __init__(self, bootstrap_servers,kafka_producer, logger, client_repository: database.postgres_client.ClientRepository):
+        self.kafka_producer = kafka_producer
+        self.logger = logger
+        self.client_repository = client_repository
+        self.bootstrap_servers = bootstrap_servers
+
+
+    def run(self):
+        self._start_kafka_consumer()
 
     async def _start_kafka_consumer(self):
         loop = asyncio.get_event_loop()
@@ -189,3 +200,32 @@ class PaymentProcessor:
                     self.logger.error(f"Error processing Kafka message: {e}")
         
         threading.Thread(target=consume_responses, daemon=True).start()
+
+
+def main():
+    load_dotenv()
+    kafka_bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
+    if kafka_bootstrap_servers is None:
+        raise ValueError("KAFKA_BOOTSTRAP_SERVERS environment variable is not set")
+    kafka_producer = KafkaProducer(
+        bootstrap_servers=kafka_bootstrap_servers,
+        value_serializer=lambda v: json.dumps(v).encode('utf-8')
+    )
+    endpoints = os.getenv("ENDPOINTS")
+    if endpoints is None:
+        raise ValueError("ENDPOINTS environment variable is not set")
+    endpoints = endpoints.split(",")
+    logger = logging.getLogger(__name__)
+    client_repository = database.postgres_client.ClientRepository()
+
+    payment_service = PaymentProcessor(
+        kafka_producer=kafka_producer,
+        logger=logger,
+        client_repository=client_repository
+    )
+
+    payment_service.run()
+    
+
+if __name__ == "__main__":
+    main()
