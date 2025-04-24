@@ -59,7 +59,10 @@ class WireguardService:
     async def scheduler_upload_traffic_for_users(self):
         db_clients = await self.client_repository.get_all_clients()
         for client in db_clients:
-            await self.client_repository.update_user_data(client.id, 0, last_used_gigabytes=0, used_gigabytes=0, enabled_status=True)
+            max_gigabytes = 10
+            if client.last_used_gigabytes+client.used_gigabytes < client.max_gigabytes and client.max_gigabytes != 10:
+                max_gigabytes = client.max_gigabytes-client.last_used_gigabytes-client.used_gigabytes
+            await self.client_repository.update_user_data(client.id, 0, last_used_gigabytes=0, used_gigabytes=0,max_gigabytes=max_gigabytes, enabled_status=True)
         await self.kafka_producer.send("upload-traffic", json.dumps({"telegram_id": 0}).encode('utf-8'))
 
     async def scheduler_check_premium_status(self):
