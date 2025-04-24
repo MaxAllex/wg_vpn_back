@@ -256,8 +256,8 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     ack_response.info.need_to_disable = db_user_data.need_to_disable
                     yield ack_response
 
-                    self.client_repo.update_single_field(db_user_data.telegram_id, 0, "wg_id", response['wg_id'])
-                    self.client_repo.update_single_field(db_user_data.telegram_id, 0, "wg_server", response['wg_server'])
+                    self.client_repo.update_single_field(db_user_data.id, 0, "wg_id", response['wg_id'])
+                    self.client_repo.update_single_field(db_user_data.id, 0, "wg_server", response['wg_server'])
                     
                     return
                 except Queue.Empty:
