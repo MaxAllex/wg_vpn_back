@@ -13,6 +13,8 @@ from datetime import datetime
 from utils import Utils
 import threading
 import database
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -57,62 +59,54 @@ class PaymentProcessor:
             self.kafka_producer.send("payment-service", {"type": "precheckout_failed", "payload": query, "user_data": user_data})
             logger.error(f"Ошибка при обработке precheckout callback: {e}")
             
-    async def successful_payment_callback(self, user_data):
+    async def successful_payment_callback(self, user_data, payment):
         """Обработка успешного платежа"""
         try:
             logger.info("Обработка успешного платежа")
-            payment = update.message.successful_payment
-            amount = payment.total_amount / 100  # Переводим из копеек в рубли
+            amount = payment.total_amount / 100  
             currency = payment.currency
             invoice_payload = payment.invoice_payload
-            first_name = update.effective_user.first_name
-            user_id = update.effective_user.id
-            login = update.effective_user.username
-            premium_status_is_valid_until = None
+            client = self.client_repository.get_client_by_user_id(user_data['id'])
 
             # Устанавливаем дату окончания премиум статуса в зависимости от тарифа
             if invoice_payload == "unlimited-month":
+                now = datetime.now()
                 premium_status_is_valid_until = datetime.now() + relativedelta(months=1)
-            elif invoice_payload == "unlimited-year":
-                premium_status_is_valid_until = datetime.now() + relativedelta(years=1)
-
-            # Подтверждение пользователю
-            await update.message.reply_text(
-                f"Спасибо за оплату! Вы оплатили {amount:.2f} {currency}."
-            )
-
-            telegram_id = update.effective_user.id
-            client = await get_client_by_telegram_id(telegram_id)
-            if client:
-                # Применяем тариф
-                if invoice_payload == "add-traffic":
-                    if client.enabled_status:
-                        await Utils.disable_client(client)
-                    await Utils.enable_client(client)
+                if premium_status_is_valid_until is None or premium_status_is_valid_until < now:
+                    premium_status_is_valid_until = datetime.now() + relativedelta(months=1)
                 else:
-                    if not client.enabled_status:
-                        await Utils.enable_client(client)
-                    await update_single_field(telegram_id, "has_premium_status", True)
-                    await update_single_field(telegram_id, "premium_status_is_valid_until", premium_status_is_valid_until)
-            else:
-                logger.error(f"Клиент {telegram_id} не найден в базе данных")
-                await update.message.reply_text(
-                    "Ваш платеж успешно обработан, но вас нет в базе наших клиентов. Пожалуйста, обратитесь в поддержку."
-                )
+                    premium_status_is_valid_until = premium_status_is_valid_until + relativedelta(months=1)
+                
+                self.client_repository.update_single_field(client.id, "premium_status_is_valid_until", premium_status_is_valid_until)
+                self.client_repository.update_single_field(client.id, "has_premium_status", True)
+            elif invoice_payload == "unlimited-year":
+                now = datetime.now()
+                premium_status_is_valid_until = datetime.now() + relativedelta(years=1)
+                if premium_status_is_valid_until is None or premium_status_is_valid_until < now:
+                    premium_status_is_valid_until = datetime.now() + relativedelta(years=1)
+                else:
+                    premium_status_is_valid_until = premium_status_is_valid_until + relativedelta(years=1)
+                self.client_repository.update_single_field(client.id, "premium_status_is_valid_until", premium_status_is_valid_until)
+                self.client_repository.update_single_field(client.id, "has_premium_status", True)
 
-            # Отправляем уведомление администратору о платеже
-            await context.bot.send_message(
-                chat_id=admin_chat_id,
-                text=Utils.format_pay_message(user_id, login, first_name, amount, currency, invoice_payload),
-                parse_mode="HTML"
-            )
+            self.kafka_producer.send("payment-service", {"type": "successful_payment", "payload": invoice_payload, "user_data": user_data})
+
+            
+            if client:
+                if invoice_payload == "add-traffic":
+                    self.client_repository.update_single_field(client.id, "max_gigabytes", client.max_gigabytes + 10)
+                else:
+                    self.kafka_producer.send("payment-service", {"type": "successful_payment_errored", "payload": invoice_payload, "user_data": user_data})
+            else:
+                self.kafka_producer.send("payment-service", {"type": "successful_payment_errored", "payload": invoice_payload, "user_data": user_data})
+                logger.error(f"Клиент {user_data} не найден в базе данных")
+ 
+
         except Exception as e:
             traceback.print_exc()
-            await update.message.reply_text(
-                "Ошибка при обработке успешного платежа. \nОбратитесь в поддержку"
-            )
+            self.kafka_producer.send("payment-service", {"type": "successful_payment_errored", "payload": invoice_payload, "user_data": user_data})
             logger.error(f"Ошибка при обработке успешного платежа: {e}")
-      async def handle_tariff_selection(self, user_data):
+    async def handle_tariff_selection(self, user_data):
         """Обрабатываем выбор тарифа"""
         try:
             query = update.callback_query
