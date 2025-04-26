@@ -3,7 +3,6 @@ import os
 from fastapi import HTTPException
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-import jwt.exceptions
 
 #load_dotenv()
 #SECRET_KEY = os.getenv("SECRET_KEY")

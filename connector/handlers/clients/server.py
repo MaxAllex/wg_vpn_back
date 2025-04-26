@@ -272,7 +272,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
 
     def _start_kafka_consumer(self, bootstrap_servers):
         """Запускает фоновый поток для получения ответов из Kafka"""
-        async def consume_responses():
+        def consume_responses():
             consumer = KafkaConsumer(
                 bootstrap_servers=bootstrap_servers,
                 group_id='config-gateway-group',

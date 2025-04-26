@@ -16,7 +16,7 @@ from qrcode.main import QRCode
 from io import BytesIO
 import datetime
 import pytz
-import database
+import database.postgres_client
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 class WireguardService:
