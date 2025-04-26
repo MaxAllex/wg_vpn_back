@@ -22,7 +22,7 @@ class JWTService:
         self.access_token_expire = int(ACCESS_TOKEN_EXPIRE_MINUTES)
         self.refresh_token_expire = int(REFRESH_TOKEN_EXPIRE_MINUTES)
     
-    async def create_token(self, data: dict, expires_delta: timedelta = timedelta(0)):
+    def create_token(self, data: dict, expires_delta: timedelta = timedelta(0)):
         if (expires_delta == timedelta(0)):
             expires_delta = timedelta(minutes=self.access_token_expire)
         to_encode = data.copy()
@@ -31,7 +31,7 @@ class JWTService:
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
         return encoded_jwt
     
-    async def verify_token(self, token: str):
+    def verify_token(self, token: str):
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
             return payload
@@ -40,11 +40,11 @@ class JWTService:
         except Exception as e:
             return f"Invalid token"
     
-    async def refresh_tokens(self, token:str):
+    def refresh_tokens(self, token:str):
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
-            access_token = await self.create_token(payload, timedelta(minutes=self.access_token_expire))
-            refresh_token = await self.create_token(payload, timedelta(minutes=self.refresh_token_expire))
+            access_token = self.create_token(payload, timedelta(minutes=self.access_token_expire))
+            refresh_token = self.create_token(payload, timedelta(minutes=self.refresh_token_expire))
             return {"access_token": access_token, "refresh_token": refresh_token}
         except jwt.ExpiredSignatureError:
             return "Token expired"
