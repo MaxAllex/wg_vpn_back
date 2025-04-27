@@ -234,7 +234,9 @@ class WireguardService:
             print("WHAT")
             temp_wg = await self.create_client_handler(user_data, "changed server")
             async with self.create_session(endpoint) as session:
+                print("WHAT x2")
                 self.delete_client(session, start_endpoint, client_data.wg_id)
+                print("WHAT x3")
             client_data.wg_server = endpoint
             client_data.wg_id = temp_wg
             print("error here")
