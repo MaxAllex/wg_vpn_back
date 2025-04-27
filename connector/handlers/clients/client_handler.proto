@@ -29,7 +29,10 @@ message InfoResponse {
 }
 
 message ConfigResponse {
-	bool status = 1;
+	oneof response {
+		Ack ack = 1;
+		InfoResponse info = 2;
+	}
 }
 
 message Image {

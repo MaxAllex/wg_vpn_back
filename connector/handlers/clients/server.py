@@ -140,7 +140,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                         ack_response.ack.message = "Request failed"
                         yield ack_response
                         return
-                    ack_response.config.status = True
+                    ack_response.info.status = True
                     yield ack_response
                     return
                 except Empty:
@@ -190,7 +190,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                         ack_response.ack.message = "Request failed"
                         yield ack_response
                         return
-                    ack_response.image.status = True
+                    ack_response.info.status = True
                     yield ack_response
                     return
                 except Empty:

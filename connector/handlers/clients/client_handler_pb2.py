@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14\x63lient_handler.proto\x12\x0e\x63lient_handler\"\"\n\nGetRequest\x12\x14\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\t\"n\n\x0eStatusResponse\x12\"\n\x03\x61\x63k\x18\x01 \x01(\x0b\x32\x13.client_handler.AckH\x00\x12,\n\x04info\x18\x02 \x01(\x0b\x32\x1c.client_handler.InfoResponseH\x00\x42\n\n\x08response\"\x16\n\x03\x41\x63k\x12\x0f\n\x07message\x18\x01 \x01(\t\"\x1e\n\x0cInfoResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\" \n\x0e\x43onfigResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\"\x1b\n\x05Image\x12\x12\n\nimage_data\x18\x01 \x01(\t\"%\n\x13\x43onnectResponseInfo\x12\x0e\n\x06status\x18\x01 \x01(\x08\"v\n\x0f\x43onnectResponse\x12\"\n\x03\x61\x63k\x18\x01 \x01(\x0b\x32\x13.client_handler.AckH\x00\x12\x33\n\x04info\x18\x02 \x01(\x0b\x32#.client_handler.ConnectResponseInfoH\x00\x42\n\n\x08response2\xd2\x02\n\rClientHandler\x12K\n\tGetStatus\x12\x1a.client_handler.GetRequest\x1a\x1e.client_handler.StatusResponse\"\x00\x30\x01\x12R\n\x10GetConnectConfig\x12\x1a.client_handler.GetRequest\x1a\x1e.client_handler.ConfigResponse\"\x00\x30\x01\x12N\n\x0cGetConnectQR\x12\x1a.client_handler.GetRequest\x1a\x1e.client_handler.ConfigResponse\"\x00\x30\x01\x12P\n\rHandleConnect\x12\x1a.client_handler.GetRequest\x1a\x1f.client_handler.ConnectResponse\"\x00\x30\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14\x63lient_handler.proto\x12\x0e\x63lient_handler\"\"\n\nGetRequest\x12\x14\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\t\"n\n\x0eStatusResponse\x12\"\n\x03\x61\x63k\x18\x01 \x01(\x0b\x32\x13.client_handler.AckH\x00\x12,\n\x04info\x18\x02 \x01(\x0b\x32\x1c.client_handler.InfoResponseH\x00\x42\n\n\x08response\"\x16\n\x03\x41\x63k\x12\x0f\n\x07message\x18\x01 \x01(\t\"\x1e\n\x0cInfoResponse\x12\x0e\n\x06status\x18\x01 \x01(\x08\"n\n\x0e\x43onfigResponse\x12\"\n\x03\x61\x63k\x18\x01 \x01(\x0b\x32\x13.client_handler.AckH\x00\x12,\n\x04info\x18\x02 \x01(\x0b\x32\x1c.client_handler.InfoResponseH\x00\x42\n\n\x08response\"\x1b\n\x05Image\x12\x12\n\nimage_data\x18\x01 \x01(\t\"%\n\x13\x43onnectResponseInfo\x12\x0e\n\x06status\x18\x01 \x01(\x08\"v\n\x0f\x43onnectResponse\x12\"\n\x03\x61\x63k\x18\x01 \x01(\x0b\x32\x13.client_handler.AckH\x00\x12\x33\n\x04info\x18\x02 \x01(\x0b\x32#.client_handler.ConnectResponseInfoH\x00\x42\n\n\x08response2\xd2\x02\n\rClientHandler\x12K\n\tGetStatus\x12\x1a.client_handler.GetRequest\x1a\x1e.client_handler.StatusResponse\"\x00\x30\x01\x12R\n\x10GetConnectConfig\x12\x1a.client_handler.GetRequest\x1a\x1e.client_handler.ConfigResponse\"\x00\x30\x01\x12N\n\x0cGetConnectQR\x12\x1a.client_handler.GetRequest\x1a\x1e.client_handler.ConfigResponse\"\x00\x30\x01\x12P\n\rHandleConnect\x12\x1a.client_handler.GetRequest\x1a\x1f.client_handler.ConnectResponse\"\x00\x30\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -40,13 +40,13 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_INFORESPONSE']._serialized_start=212
   _globals['_INFORESPONSE']._serialized_end=242
   _globals['_CONFIGRESPONSE']._serialized_start=244
-  _globals['_CONFIGRESPONSE']._serialized_end=276
-  _globals['_IMAGE']._serialized_start=278
-  _globals['_IMAGE']._serialized_end=305
-  _globals['_CONNECTRESPONSEINFO']._serialized_start=307
-  _globals['_CONNECTRESPONSEINFO']._serialized_end=344
-  _globals['_CONNECTRESPONSE']._serialized_start=346
-  _globals['_CONNECTRESPONSE']._serialized_end=464
-  _globals['_CLIENTHANDLER']._serialized_start=467
-  _globals['_CLIENTHANDLER']._serialized_end=805
+  _globals['_CONFIGRESPONSE']._serialized_end=354
+  _globals['_IMAGE']._serialized_start=356
+  _globals['_IMAGE']._serialized_end=383
+  _globals['_CONNECTRESPONSEINFO']._serialized_start=385
+  _globals['_CONNECTRESPONSEINFO']._serialized_end=422
+  _globals['_CONNECTRESPONSE']._serialized_start=424
+  _globals['_CONNECTRESPONSE']._serialized_end=542
+  _globals['_CLIENTHANDLER']._serialized_start=545
+  _globals['_CLIENTHANDLER']._serialized_end=883
 # @@protoc_insertion_point(module_scope)
