@@ -53,8 +53,8 @@ class WireguardService:
                     if str(db_client.wg_id) == str(client['id']):
                         transfer_tx = client.get("transferTx", 0)
                         gigabytes_value = self.bytes_to_gb(transfer_tx) if transfer_tx else 0
-                        self.client_repository.update_single_field(db_client.id, 0, "gigabytes", gigabytes_value)
-                        self.client_repository.update_single_field(db_client.id, 0, "latest_handshake", client['latestHandshakeAt'])
+                        self.client_repository.update_single_field(str(db_client.id), 0, "gigabytes", gigabytes_value)
+                        self.client_repository.update_single_field(str(db_client.id), 0, "latest_handshake", client['latestHandshakeAt'])
                         break
 
 
@@ -64,7 +64,7 @@ class WireguardService:
             max_gigabytes = 10
             if client.last_used_gigabytes+client.used_gigabytes < client.max_gigabytes and client.max_gigabytes != 10:
                 max_gigabytes = 10+client.max_gigabytes-client.last_used_gigabytes-client.used_gigabytes
-            await self.client_repository.update_user_data(client.id, 0, last_used_gigabytes=0, used_gigabytes=0,max_gigabytes=max_gigabytes, enabled_status=True)
+            await self.client_repository.update_user_data(str(client.id), 0, last_used_gigabytes=0, used_gigabytes=0,max_gigabytes=max_gigabytes, enabled_status=True)
         self.kafka_producer.send("upload-traffic", json.dumps({"telegram_id": 0}).encode('utf-8'))
 
     async def scheduler_check_premium_status(self):
@@ -75,8 +75,8 @@ class WireguardService:
                 reminder_date = client.premium_status_is_valid_until.date() - datetime.timedelta(days=1)
                 telegram_id = client.telegram_id
                 if client.premium_status_is_valid_until.date() <= today:
-                    await self.client_repository.update_single_field(id, "has_premium_status", False)
-                    await self.client_repository.update_single_field(id, "premium_status_is_valid_until", None)
+                    await self.client_repository.update_single_field(str(client.id), "has_premium_status", False)
+                    await self.client_repository.update_single_field(str(client.id), "premium_status_is_valid_until", None)
                     self.kafka_producer.send("disable-premium", json.dumps({"telegram_id": telegram_id}).encode('utf-8'))
                 elif client.premium_status_is_valid_until.date() == reminder_date:
                     self.kafka_producer.send("premium-reminder", json.dumps({"telegram_id": telegram_id}).encode('utf-8'))
@@ -327,15 +327,6 @@ class WireguardService:
                     return response.status < 500
         except (ClientError, asyncio.TimeoutError):
             return False
-
-    async def get_qr_handler(self, user_data, correlation_id):
-        endpoint = user_data["wg_server"]
-        async with self.create_session(endpoint) as session:
-            result = await self.get_config(session, endpoint, user_data['wg_id'])
-            self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
-                "status": True,
-                "output": str(b64.b64encode(result))
-            }}))
 
 
     def bytes_to_db(self, bytes_value):
