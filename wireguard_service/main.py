@@ -227,6 +227,7 @@ class WireguardService:
 
 
     async def get_config_handler(self, user_data, correlation_id):
+        print(user_data)
         client_data = await self.client_repository.get_client_by_user_id(user_data['id'])
         if client_data.last_used_gigabytes + client_data.used_gigabytes > client_data.max_gigabytes and not client_data.has_premium_status:
             self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
