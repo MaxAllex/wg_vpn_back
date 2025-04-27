@@ -129,27 +129,23 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             'user_data': {"id": str(db_user_data.id)}
         }))
 
-        try:
-            start_time = time.time()
-            while True:
-                try:
-                    response = response_queue.get(timeout=3)
-                    if not response['status']:
-                        ack_response.ack.message = "Request failed"
-                        yield ack_response
-                        return
-                    ack_response.info.status = True
+        start_time = time.time()
+        while True:
+            try:
+                response = response_queue.get(timeout=3)
+                if not response['status']:
+                    ack_response.ack.message = "Request failed"
                     yield ack_response
                     return
-                except Empty:
-                    if time.time() - start_time > self.kafka_timeout_seconds:
-                        ack_response.ack.message = "Timeout"
-                        yield ack_response
-                        return
-                    continue
-        finally:
-            if correlation_id in self.active_requests:
-                del self.active_requests[correlation_id]
+                ack_response.info.status = True
+                yield ack_response
+                return
+            except Empty:
+                if time.time() - start_time > self.kafka_timeout_seconds:
+                    ack_response.ack.message = "Timeout"
+                    yield ack_response
+                    return
+                continue
 
     def GetConnectQR(self, request, context):
         ack_response = client_handler_pb2.ConfigResponse()
@@ -179,28 +175,24 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             'user_data': {"id": str(db_user_data.id)}
         })
 
-        try:
-            start_time = time.time()
-            while True:
-                try:
-                    response = response_queue.get(timeout=3)
-                    if not response['status']:
-                        ack_response.ack.message = "Request failed"
-                        yield ack_response
-                        return
-                    ack_response.info.status = True
+        start_time = time.time()
+        while True:
+            try:
+                response = response_queue.get(timeout=3)
+                if not response['status']:
+                    ack_response.ack.message = "Request failed"
                     yield ack_response
                     return
-                except Empty:
-                    if time.time() - start_time > self.kafka_timeout_seconds:
-                        ack_response.ack.message = "Timeout"
-                        yield ack_response
-                        return
-                    continue
-        finally:
-            if correlation_id in self.active_requests:
-                del self.active_requests[correlation_id]
-
+                ack_response.info.status = True
+                yield ack_response
+                return
+            except Empty:
+                if time.time() - start_time > self.kafka_timeout_seconds:
+                    ack_response.ack.message = "Timeout"
+                    yield ack_response
+                    return
+                continue
+        
     def HandleConnect(self, request, context):
         ack_response = client_handler_pb2.ConnectResponse()
         user_data = self.jwt_service.verify_token(request.access_token)
