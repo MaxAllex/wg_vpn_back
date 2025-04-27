@@ -331,11 +331,9 @@ class WireguardService:
                 latest_handshake_at = datetime.datetime.strptime("1970-01-01T00:00:00.000Z", "%Y-%m-%dT%H:%M:%S.%fZ")
             transfer_tx = client_data.get("transferTx", 0)
             await self.client_repository.update_single_field(user_data['id'], 0, "latest_handshake", latest_handshake_at)
-            print(client_data)
             self.kafka_producer.send('info-responses', value={'correlation_id': correlation_id, 'status_response': {
                 "status": True,
             }})
-            print(client_data)
         
         
     async def _process_message(self, topic: str, user_data: dict, correlation_id: str):
