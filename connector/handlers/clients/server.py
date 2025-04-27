@@ -82,15 +82,6 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                         return
                     
                     ack_response.info.status = True
-                    ack_response.info.output = ""
-                    ack_response.info.connection_status = db_user_data.connection_status
-                    cr_ts = Timestamp()
-                    ack_response.info.created_at = cr_ts.FromDatetime(db_user_data.created_at)
-                    ack_response.info.gigabytes = response['gigabytes']
-                    ack_response.info.last_connection = response['last_connection']
-                    ack_response.info.premium_status = db_user_data.has_premium_status
-                    pr_ut = Timestamp()
-                    ack_response.info.premium_until = pr_ut.FromDatetime(db_user_data.premium_status_is_valid_until)
                     yield ack_response
                     return
                 except Empty:
@@ -140,7 +131,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                         ack_response.ack.message = "Request failed"
                         yield ack_response
                         return
-                    ack_response.config.output = response['output']
+                    ack_response.config.status = True
                     yield ack_response
                     return
                 except Empty:
@@ -190,7 +181,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                         ack_response.ack.message = "Request failed"
                         yield ack_response
                         return
-                    ack_response.image.image_data = response['image_data']
+                    ack_response.image.status = True
                     yield ack_response
                     return
                 except Empty:
@@ -255,25 +246,10 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                         yield ack_response
                         return
                     print("here3")
-                    ack_response.info.config = ""
-                    ack_response.info.image_data = ""
-                    ack_response.info.uuid = str(db_user_data.id)
-                    ack_response.info.wg_id = str(response['wg_id'])
                     asyncio.run(self.client_repo.update_single_field(db_user_data.id, 0, "wg_id", response['wg_id']))
                     asyncio.run(self.client_repo.update_single_field(db_user_data.id, 0, "wg_server", response['wg_server']))
-                    premium_until = db_user_data.premium_status_is_valid_until if db_user_data.premium_status_is_valid_until is not None else datetime.datetime.now()
-                    pr_ut = Timestamp()
-                    pr_ut.FromDatetime(premium_until)
-                    ack_response.info.premium_until.CopyFrom(pr_ut)
-
-                    created_at = db_user_data.created_at if db_user_data.created_at is not None else datetime.datetime.now()
-                    cr_ts = Timestamp()
-                    cr_ts.FromDatetime(created_at)
-                    ack_response.info.created_at.CopyFrom(cr_ts)
-                    ack_response.info.has_premium_status = db_user_data.has_premium_status
-                    ack_response.info.enabled_status = db_user_data.enabled_status
-                    ack_response.info.need_to_disable = db_user_data.need_to_disable
-        
+                    ack_response.info.status = True
+                    
                     
                     yield ack_response
 
