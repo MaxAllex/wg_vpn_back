@@ -119,7 +119,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         self.active_requests[correlation_id] = response_queue
         self.kafka_producer.send('config-requests', value={
             'correlation_id': correlation_id,
-            'user_data': db_user_data.to_dict()
+            'user_data': {"id": str(db_user_data.id), "used_gigabytes": db_user_data.used_gigabytes,"wg_id": str(db_user_data.wg_id), "wg_server": db_user_data.wg_server, "max_gigabytes": db_user_data.max_gigabytes, "last_used_gigabytes": db_user_data.last_used_gigabytes}
         })
 
         try:
@@ -169,7 +169,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         self.active_requests[correlation_id] = response_queue
         self.kafka_producer.send('qr-requests', value={
             'correlation_id': correlation_id,
-            'user_data': db_user_data.to_dict()
+            'user_data': {"id": str(db_user_data.id), "used_gigabytes": db_user_data.used_gigabytes,"wg_id": str(db_user_data.wg_id), "wg_server": db_user_data.wg_server, "max_gigabytes": db_user_data.max_gigabytes, "last_used_gigabytes": db_user_data.last_used_gigabytes}
         })
 
         try:

@@ -241,9 +241,9 @@ class WireguardService:
         
         async with self.create_session(endpoint) as session:
             result = await self.get_config(session, endpoint, user_data['wg_id'])
+            await self.client_repository.update_single_field(user_data['id'], "config_file", b64.b64encode(result).encode("utf-8"))
             self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {
-                "status": True,
-                "output": str(b64.b64encode(result))
+                "status": True
             }}).encode('utf-8'))
     
     async def get_qr_handler(self, user_data, correlation_id):
@@ -266,9 +266,9 @@ class WireguardService:
         async with self.create_session(endpoint) as session:
             self.create_session(endpoint)
             result = await self.get_config(session, endpoint, user_data['wg_id'])
+            await self.client_repository.update_single_field(user_data['id'], "config_file", b64.b64encode(self.get_qr_code(result)).encode("utf-8"))
             self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
                 "status": True,
-                "output": str(b64.b64encode(self.get_qr_code(result)))
             }}))
 
     async def create_client_handler(self, user_data, correlation_id):
