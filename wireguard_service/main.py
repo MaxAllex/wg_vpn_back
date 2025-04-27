@@ -227,34 +227,12 @@ class WireguardService:
 
 
     async def get_config_handler(self, user_data, correlation_id):
-        if user_data['last_used_gigabytes'] + user_data['used_gigabytes'] > user_data['max_gigabytes']:
+        client_data = await self.client_repository.get_client_by_user_id(user_data['id'])
+        if client_data.last_used_gigabytes + client_data.used_gigabytes > user_data['max_gigabytes'] and not client_data.has_premium_status:
             self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
             return
-        endpoint = user_data["wg_server"]
-        if not await self.check_alive(endpoint):
-            start_endpoint = endpoint
-            endpoint = await self.best_endpoint()
-            if endpoint == "Failed":
-                self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
-                return
-            temp_wg = await self.create_client_handler(user_data, "changed server")
-            async with self.create_session(endpoint) as session:
-                self.delete_client(session, start_endpoint, user_data['wg_id'])
-            user_data["wg_server"] = endpoint
-            user_data["wg_id"] = temp_wg
+        endpoint = client_data.wg_server
         
-        async with self.create_session(endpoint) as session:
-            result = await self.get_config(session, endpoint, user_data['wg_id'])
-            await self.client_repository.update_single_field(user_data['id'], "config_file", b64.b64encode(result).decode("utf-8"))
-            self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {
-                "status": True
-            }}).encode('utf-8'))
-    
-    async def get_qr_handler(self, user_data, correlation_id):
-        if user_data['last_used_gigabytes'] + user_data['used_gigabytes'] > user_data['max_gigabytes']:
-            self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
-            return
-        endpoint = user_data["wg_server"]
         if not await self.check_alive(endpoint):
             start_endpoint = endpoint
             endpoint = await self.best_endpoint()
@@ -263,13 +241,44 @@ class WireguardService:
                 return
             temp_wg = await self.create_client_handler(user_data, "changed server")
             async with self.create_session(endpoint) as session:
-                self.delete_client(session, start_endpoint, user_data['wg_id'])
-            user_data["wg_server"] = endpoint
-            user_data["wg_id"] = temp_wg
+                self.delete_client(session, start_endpoint, client_data.wg_id)
+            client_data.wg_server = endpoint
+            client_data.wg_id = temp_wg
+            await self.client_repository.update_single_field(user_data['id'], "wg_server", endpoint)
+            await self.client_repository.update_single_field(user_data['id'], "wg_id", temp_wg)
+
+        
+        async with self.create_session(endpoint) as session:
+            result = await self.get_config(session, endpoint, client_data.wg_id)
+            await self.client_repository.update_single_field(user_data['id'], "config_file", b64.b64encode(result).decode("utf-8"))
+            self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {
+                "status": True
+            }}).encode('utf-8'))
+    
+    async def get_qr_handler(self, user_data, correlation_id):
+        
+        client_data = await self.client_repository.get_client_by_user_id(user_data['id'])
+        if client_data.last_used_gigabytes + client_data.used_gigabytes > user_data['max_gigabytes'] and not client_data.has_premium_status:
+            self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
+            return
+        endpoint = client_data.wg_server
+        if not await self.check_alive(endpoint):
+            start_endpoint = endpoint
+            endpoint = await self.best_endpoint()
+            if endpoint == "Failed":
+                self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {"status": False}}).encode("utf-8"))
+                return
+            temp_wg = await self.create_client_handler(user_data, "changed server")
+            async with self.create_session(endpoint) as session:
+                self.delete_client(session, start_endpoint, client_data.wg_id)
+            client_data.wg_server = endpoint
+            client_data.wg_id = temp_wg
+            await self.client_repository.update_single_field(user_data['id'], "wg_server", endpoint)
+            await self.client_repository.update_single_field(user_data['id'], "wg_id", temp_wg)
 
         async with self.create_session(endpoint) as session:
             self.create_session(endpoint)
-            result = await self.get_config(session, endpoint, user_data['wg_id'])
+            result = await self.get_config(session, endpoint, client_data.wg_id)
             await self.client_repository.update_single_field(user_data['id'], "config_file", b64.b64encode(self.get_qr_code(result)).decode("utf-8"))
             self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
                 "status": True,
@@ -353,12 +362,11 @@ class WireguardService:
                 return
             latest_handshake_at = client_data.get("latestHandshakeAt")
             if latest_handshake_at:
-                latest_handshake_at = datetime.strptime(latest_handshake_at, "%Y-%m-%dT%H:%M:%S.%fZ")
+                latest_handshake_at = datetime.datetime.strptime(latest_handshake_at, "%Y-%m-%dT%H:%M:%S.%fZ")
             else:
-                latest_handshake_at = datetime.strptime("1970-01-01T00:00:00.000Z", "%Y-%m-%dT%H:%M:%S.%fZ")
+                latest_handshake_at = datetime.datetime.strptime("1970-01-01T00:00:00.000Z", "%Y-%m-%dT%H:%M:%S.%fZ")
             transfer_tx = client_data.get("transferTx", 0)
             await self.client_repository.update_single_field(user_data['id'], 0, "latest_handshake", latest_handshake_at)
-            print("here")
             self.kafka_producer.send('info-responses', value=json.dumps({'correlation_id': correlation_id, 'status_response': {
                 "status": True,
             }}))
