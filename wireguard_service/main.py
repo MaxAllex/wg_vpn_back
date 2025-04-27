@@ -221,14 +221,14 @@ class WireguardService:
     async def get_config_handler(self, user_data, correlation_id):
         client_data = await self.client_repository.get_client_by_user_id(user_data['id'])
         if client_data.last_used_gigabytes + client_data.used_gigabytes > client_data.max_gigabytes and not client_data.has_premium_status:
-            self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
+            self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}))
             return
         endpoint = client_data.wg_server
         if not await self.check_alive(endpoint):
             start_endpoint = endpoint
             endpoint = await self.best_endpoint()
             if endpoint == "Failed":
-                self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {"status": False}}).encode("utf-8"))
+                self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {"status": False}}))
                 return
             temp_wg = await self.create_client_handler(user_data, "changed server")
             async with self.create_session(endpoint) as session:
