@@ -149,15 +149,9 @@ class WireguardService:
     async def create_session(self, endpoint: str):
         session = aiohttp.ClientSession()
         try:
-            print("create session here")
-            print(self.password_data)
             async with session.post(f"http://{endpoint}/api/session", json=self.password_data) as response:
-                print("create session here1")
                 cookies = response.cookies
-                print("create session here2")
-            print("create session here3")
             session.cookie_jar.update_cookies({key: morsel.value for key, morsel in cookies.items()})
-            print("create session here4")
             yield session
         finally:
             await session.close()
@@ -205,7 +199,6 @@ class WireguardService:
 
     async def best_endpoint(self, timeout: float = 2.0) -> str:
         try:
-            print("here!!!!")
             tasks = [self.evaluate_endpoint(ep, timeout) for ep in self.endpoints]
             results = await asyncio.gather(*tasks)
 
@@ -215,7 +208,6 @@ class WireguardService:
                 return "Failed"
             
             alive.sort(key=lambda x: x["score"])
-            print(alive)
             return alive[0]["endpoint"]
         except Exception as e:
             self.logger.error(f"Ошибка получения лучшего сервера:{e}")
@@ -227,7 +219,6 @@ class WireguardService:
 
 
     async def get_config_handler(self, user_data, correlation_id):
-        print(user_data)
         client_data = await self.client_repository.get_client_by_user_id(user_data['id'])
         if client_data.last_used_gigabytes + client_data.used_gigabytes > client_data.max_gigabytes and not client_data.has_premium_status:
             self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
@@ -240,7 +231,7 @@ class WireguardService:
             if endpoint == "Failed":
                 self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {"status": False}}).encode("utf-8"))
                 return
-            print(client_data)
+            print("WHAT")
             temp_wg = await self.create_client_handler(user_data, "changed server")
             async with self.create_session(endpoint) as session:
                 self.delete_client(session, start_endpoint, client_data.wg_id)
@@ -248,7 +239,7 @@ class WireguardService:
             client_data.wg_id = temp_wg
             await self.client_repository.update_single_field(user_data['id'], "wg_server", endpoint)
             await self.client_repository.update_single_field(user_data['id'], "wg_id", temp_wg)
-
+        
         
         async with self.create_session(endpoint) as session:
             print("JFJIFJSKFJKLSJFKSJ")
