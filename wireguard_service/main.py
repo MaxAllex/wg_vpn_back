@@ -245,10 +245,7 @@ class WireguardService:
                     self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {"status": False}})
                     return
                 try:
-                    qr_code = self.get_qr_code(config_bytes)
-                    qr_code = b64.b64encode(qr_code.encode('utf-8')).decode('utf-8')
                     config_bytes = b64.b64encode(config_bytes)
-                    await self.client_repository.update_single_field(str(client_data.id),0, "qr_code", qr_code)
                     await self.client_repository.update_single_field(str(client_data.id),0, "config_file", config_bytes.decode('utf-8'))
                     self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {
                     "status": True,
