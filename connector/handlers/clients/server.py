@@ -25,7 +25,6 @@ import database
 
 class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
     def GetDbUserData(self, request, context, user_data) -> database.entities.client.Client:
-        print("hehehe")
         try:
             if "telegram_id" in user_data.keys():
                 user = asyncio.run(self.client_repo.get_client_by_telegram_id(user_data["telegram_id"]))
@@ -150,7 +149,6 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                 del self.active_requests[correlation_id]
 
     def GetConnectQR(self, request, context):
-        print("ehereee")
         ack_response = client_handler_pb2.ConfigResponse()
         user_data = self.jwt_service.verify_token(request.access_token)
         if user_data == "Token expired":
@@ -201,7 +199,6 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                 del self.active_requests[correlation_id]
 
     def HandleConnect(self, request, context):
-        print("eher122")
         ack_response = client_handler_pb2.ConnectResponse()
         user_data = self.jwt_service.verify_token(request.access_token)
         if user_data == "Token expired":

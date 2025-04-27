@@ -339,8 +339,11 @@ class WireguardService:
     
 
     async def get_user_handler(self, user_data, correlation_id):
-        print(user_data)
+        
         endpoint = user_data["wg_server"]
+        if endpoint is None:
+            client_data = await self.client_repository.get_client_by_user_id(user_data['id'])
+            endpoint = client_data['wg_server']
         wg_id = user_data['wg_id']
         async with self.create_session(endpoint) as session:
             clients = await self.get_clients(session, endpoint)

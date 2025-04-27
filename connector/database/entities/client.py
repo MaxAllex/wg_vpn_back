@@ -18,7 +18,7 @@ class Client(BaseModel):
     wg_server: Optional[str] = None
     last_used_gigabytes: Optional[float] = 0.0
     used_gigabytes: Optional[float] = 0.0
-    max_gigabytes: Optional[float] = 0.0
+    max_gigabytes: Optional[float] = 10.0
     jwt_version: Optional[int] = 0
     latest_handshake: Optional[datetime] = None
     app_token: Optional[str] = None
