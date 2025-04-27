@@ -285,7 +285,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             consumer.subscribe(['config-responses', 'qr-responses', 'info-responses', 'connect-responses'])
             for msg in consumer:
                 try:
-                    print(data)
+                    print(msg)
                     data = msg.value
                     print(msg.value)
                     correlation_id = data['correlation_id']
