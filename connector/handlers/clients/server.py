@@ -62,6 +62,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         response_queue = Queue()
         correlation_id = str(uuid.uuid4())
         self.active_requests[correlation_id] = response_queue
+        print({"id": str(db_user_data.id), "used_gigabytes": db_user_data.used_gigabytes,"wg_id": str(db_user_data.wg_id), "wg_server": db_user_data.wg_server, "max_gigabytes": db_user_data.max_gigabytes, "last_used_gigabytes": db_user_data.last_used_gigabytes})
         self.kafka_producer.send('info-requests', value={
             'correlation_id': correlation_id,
             'user_data': {"id": str(db_user_data.id), "used_gigabytes": db_user_data.used_gigabytes,"wg_id": str(db_user_data.wg_id), "wg_server": db_user_data.wg_server, "max_gigabytes": db_user_data.max_gigabytes, "last_used_gigabytes": db_user_data.last_used_gigabytes}    
