@@ -243,13 +243,7 @@ class WireguardService:
             if not config_bytes:
                 self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {"status": False}})
                 return
-            try:
-                await self.client_repository.update_single_field(str(client_data.id),0, "config_file", config_bytes.decode('utf-8'))
-            except Exception as e:
-                self.logger.error(f"Ошибка при кодировании конфигурации: {e}")
-                self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {"status": False}})
-                return
-           
+            
             self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {
                 "status": True,
             }})
