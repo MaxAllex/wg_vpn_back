@@ -240,7 +240,7 @@ class WireguardService:
             await self.client_repository.update_single_field(str(client_data.id), "wg_server", endpoint)
             await self.client_repository.update_single_field(str(client_data.id), "wg_id", temp_wg)
 
-        
+        print("JFJIFJSKFJKLSJFKSJ2312312312")
         async with self.create_session(endpoint) as session:
             print("JFJIFJSKFJKLSJFKSJ")
             result = await self.get_config(session, endpoint, client_data.wg_id)
