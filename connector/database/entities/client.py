@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 
 class Client(BaseModel):
-    id: UUID
+    id: str
     telegram_id: Optional[int] = None
     wg_id: Optional[str] = None
     has_premium_status: Optional[bool] = False

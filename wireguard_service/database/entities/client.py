@@ -3,8 +3,9 @@ from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel
 
+
 class Client(BaseModel):
-    id: UUID
+    id: str
     telegram_id: Optional[int] = None
     wg_id: Optional[str] = None
     has_premium_status: Optional[bool] = False
@@ -21,7 +22,7 @@ class Client(BaseModel):
     jwt_version: Optional[int] = 0
     latest_handshake: Optional[datetime] = None
     app_token: Optional[str] = None
-    
+
     # Метод для преобразования в словарь
     def to_dict(self):
         return self.model_dump()

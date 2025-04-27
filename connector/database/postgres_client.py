@@ -110,9 +110,9 @@ class ClientRepository:
                 return None
             client_data = client[0]
             return Client(
-                id=client_data['id'],
+                id=str(client_data['id']),
                 telegram_id=client_data['telegram_id'],
-                wg_id=client_data['wg_id'],
+                wg_id=str(client_data['wg_id']),
                 has_premium_status=client_data['has_premium_status'],
                 premium_status_is_valid_until=client_data['premium_status_is_valid_until'],
                 config_file=client_data['config_file'],
@@ -134,7 +134,7 @@ class ClientRepository:
         finally:
             await conn.close()    
 
-    async def get_client_by_user_id(self, id:UUID, retry_count: int = 0) -> Client:
+    async def get_client_by_user_id(self, id:str, retry_count: int = 0) -> Client:
         conn = await self.connect()
         try:
             client = await conn.fetch("SELECT * FROM users WHERE id = $1", id)
@@ -142,9 +142,9 @@ class ClientRepository:
                 return None
             client_data = client[0]
             return Client(
-                id=client_data['id'],
+                id=str(client_data['id']),
                 telegram_id=client_data['telegram_id'],
-                wg_id=client_data['wg_id'],
+                wg_id=str(client_data['wg_id']),
                 has_premium_status=client_data['has_premium_status'],
                 premium_status_is_valid_until=client_data['premium_status_is_valid_until'],
                 config_file=client_data['config_file'],

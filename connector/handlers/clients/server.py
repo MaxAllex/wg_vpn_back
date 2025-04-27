@@ -15,6 +15,8 @@ import json
 from services.jwt import JWTService
 import threading
 from queue import Queue, Empty
+from datetime import datetime
+from google.protobuf.timestamp_pb2 import Timestamp
 
 import asyncio
 import uuid
@@ -62,7 +64,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         self.active_requests[correlation_id] = response_queue
         self.kafka_producer.send('info-requests', value={
             'correlation_id': correlation_id,
-            'user_data': db_user_data
+            'user_data': db_user_data.to_dict()
         })
 
         try:
@@ -82,11 +84,13 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     ack_response.info.status = True
                     ack_response.info.output = ""
                     ack_response.info.connection_status = db_user_data.connection_status
-                    ack_response.info.created_at = db_user_data.created_at
+                    cr_ts = Timestamp()
+                    ack_response.info.created_at = cr_ts.FromDatetime(db_user_data.created_at)
                     ack_response.info.gigabytes = response['gigabytes']
                     ack_response.info.last_connection = response['last_connection']
                     ack_response.info.premium_status = db_user_data.has_premium_status
-                    ack_response.info.premium_until = db_user_data.premium_status_is_valid_until
+                    pr_ut = Timestamp()
+                    ack_response.info.premium_until = pr_ut.FromDatetime(db_user_data.premium_status_is_valid_until)
                     yield ack_response
                     return
                 except Empty:
@@ -124,7 +128,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         self.active_requests[correlation_id] = response_queue
         self.kafka_producer.send('config-requests', value={
             'correlation_id': correlation_id,
-            'user_data': db_user_data
+            'user_data': db_user_data.to_dict()
         })
 
         try:
@@ -174,7 +178,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         self.active_requests[correlation_id] = response_queue
         self.kafka_producer.send('qr-requests', value={
             'correlation_id': correlation_id,
-            'user_data': db_user_data
+            'user_data': db_user_data.to_dict()
         })
 
         try:
@@ -237,33 +241,42 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         self.active_requests[correlation_id] = response_queue
         self.kafka_producer.send('connect-requests', value={
             'correlation_id': correlation_id,
-            'user_data': db_user_data
+            'user_data': {"id":str(db_user_data.id)}
         })
         try:
             start_time = time.time()
             while True:
                 try:
+                    print("here")
                     response = response_queue.get(timeout=3)
                     if not response['status']:
+                        print("here2")
                         ack_response.ack.message = "Request failed"
                         yield ack_response
                         return
-
+                    print("here3")
                     ack_response.info.config = ""
                     ack_response.info.image_data = ""
-                    ack_response.info.uuid = db_user_data.id
-                    ack_response.info.wg_id = response['wg_id']
-                    
+                    ack_response.info.uuid = str(db_user_data.id)
+                    ack_response.info.wg_id = str(response['wg_id'])
+                    asyncio.run(self.client_repo.update_single_field(db_user_data.id, 0, "wg_id", response['wg_id']))
+                    asyncio.run(self.client_repo.update_single_field(db_user_data.id, 0, "wg_server", response['wg_server']))
+                    premium_until = db_user_data.premium_status_is_valid_until if db_user_data.premium_status_is_valid_until is not None else datetime.datetime.now()
+                    pr_ut = Timestamp()
+                    pr_ut.FromDatetime(premium_until)
+                    ack_response.info.premium_until.CopyFrom(pr_ut)
+
+                    created_at = db_user_data.created_at if db_user_data.created_at is not None else datetime.datetime.now()
+                    cr_ts = Timestamp()
+                    cr_ts.FromDatetime(created_at)
+                    ack_response.info.created_at.CopyFrom(cr_ts)
                     ack_response.info.has_premium_status = db_user_data.has_premium_status
-                    ack_response.info.premium_until = db_user_data.premium_status_is_valid_unti
                     ack_response.info.enabled_status = db_user_data.enabled_status
-                    ack_response.info.created_at = db_user_data.created_at
                     ack_response.info.need_to_disable = db_user_data.need_to_disable
+        
+                    
                     yield ack_response
 
-                    self.client_repo.update_single_field(db_user_data.id, 0, "wg_id", response['wg_id'])
-                    self.client_repo.update_single_field(db_user_data.id, 0, "wg_server", response['wg_server'])
-                    
                     return
                 except Empty:
                     if time.time() - start_time > self.kafka_timeout_seconds:
@@ -286,19 +299,25 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             consumer.subscribe(['config-responses', 'qr-responses', 'info-responses', 'connect-responses'])
             for msg in consumer:
                 try:
-                    data = msg.value
+                    data = json.loads(msg.value)
+                    print(data)
                     correlation_id = data['correlation_id']
                     if correlation_id == "changed server":
                         continue
 
 
                     elif correlation_id in self.active_requests:
+                        print(correlation_id)
                         response_queue = self.active_requests[correlation_id]
+                        print(response_queue)
+                        if correlation_id not in self.active_requests:
+                            print("hehehehe")
                         if 'status_response' in data.keys():
                             response_queue.put(
                                 data['status_response']
                             )
                         elif 'config_response' in data.keys():
+                            print("config_response")
                             response_queue.put(
                                 data['config_response']
                             )

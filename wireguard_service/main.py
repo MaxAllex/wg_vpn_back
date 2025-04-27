@@ -50,7 +50,7 @@ class WireguardService:
         for clients in wg_clients.values():
             for client in clients:
                 for db_client in db_clients:
-                    if db_client.wg_id == client['id']:
+                    if str(db_client.wg_id) == str(client['id']):
                         transfer_tx = client.get("transferTx", 0)
                         gigabytes_value = self.bytes_to_gb(transfer_tx) if transfer_tx else 0
                         self.client_repository.update_single_field(db_client.id, 0, "gigabytes", gigabytes_value)
@@ -121,6 +121,7 @@ class WireguardService:
             return await response.read()
     
     async def create_client(self, session: ClientSession, endpoint: str, user_name: str) -> dict:
+        print(f"http://{endpoint}/api/wireguard/client")
         async with session.post(f"http://{endpoint}/api/wireguard/client", json={'name': user_name}) as response:
             return await response.json()
 
@@ -144,10 +145,15 @@ class WireguardService:
     async def create_session(self, endpoint: str):
         session = aiohttp.ClientSession()
         try:
+            print("create session here")
+            print(self.password_data)
             async with session.post(f"http://{endpoint}/api/session", json=self.password_data) as response:
+                print("create session here1")
                 cookies = response.cookies
-
+                print("create session here2")
+            print("create session here3")
             session.cookie_jar.update_cookies({key: morsel.value for key, morsel in cookies.items()})
+            print("create session here4")
             yield session
         finally:
             await session.close()
@@ -165,6 +171,7 @@ class WireguardService:
             return float('inf')
                     
     async def evaluate_endpoint(self, endpoint: str, timeout: float = 2.0):
+        print("Evaluating endpoint:", endpoint)
         result = {
             "endpoint": endpoint,
             "alive": False,
@@ -174,45 +181,40 @@ class WireguardService:
         }
 
         try:
-            start = datetime.now()
-            async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=timeout)
-            ) as session:
-                health_url = f"http://{endpoint}/api/health"
+            start = datetime.datetime.now()
+            async with self.create_session(endpoint) as session:
+                health_url = f"http://{endpoint}/"
                 async with session.get(health_url) as health_response:
                     if health_response.status >= 500:
                         return result
-                
-                result["latency"] = (datetime.now() - start).total_seconds()
+                result["latency"] = (datetime.datetime.now() - start).total_seconds()
                 
                 result["clients"] = await self.get_clients_count(session, endpoint)
-                
+
                 result["score"] = result["latency"] * 0.7 + result["clients"] * 0.3
                 result["alive"] = True
-
+            return result
         except Exception as e:
-            pass
+            print(e)
             
-        return result
+        
 
     async def best_endpoint(self, timeout: float = 2.0) -> str:
         try:
+            print("here!!!!")
             tasks = [self.evaluate_endpoint(ep, timeout) for ep in self.endpoints]
             results = await asyncio.gather(*tasks)
 
             alive = [r for r in results if r["alive"]]
-
+            
             if not alive:
-                return None
-
+                return "Failed"
+            
             alive.sort(key=lambda x: x["score"])
-
-            for ep in alive:
-                print(f"{ep['endpoint']}: latency={ep['latency']:.3f}s, clients={ep['clients']}, score={ep['score']:.3f}")
-
+            print(alive)
             return alive[0]["endpoint"]
         except Exception as e:
-            self.logger.error("Ошибка получения лучшего сервера:{e}")
+            self.logger.error(f"Ошибка получения лучшего сервера:{e}")
             return "Failed"
 
     """
@@ -241,7 +243,7 @@ class WireguardService:
             result = await self.get_config(session, endpoint, user_data['wg_id'])
             self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {
                 "status": True,
-                "output": b64.b64encode(result)
+                "output": str(b64.b64encode(result))
             }}).encode('utf-8'))
     
     async def get_qr_handler(self, user_data, correlation_id):
@@ -263,21 +265,22 @@ class WireguardService:
 
         async with self.create_session(endpoint) as session:
             self.create_session(endpoint)
-            await self.get_config(session, endpoint, user_data['wg_id'])
+            result = await self.get_config(session, endpoint, user_data['wg_id'])
             self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
                 "status": True,
-                "output": b64.b64encode(self.get_qr_code(result))
+                "output": str(b64.b64encode(self.get_qr_code(result)))
             }}))
 
     async def create_client_handler(self, user_data, correlation_id):
-        print(user_data)
-        print(correlation_id)
         endpoint = await self.best_endpoint()
         if endpoint == "Failed":
             self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {"status": False}}).encode("utf-8"))
             return
         async with self.create_session(endpoint) as session:
-            result = await self.create_client(session, endpoint, user_data['id'])
+            result = await self.create_client(session, endpoint, str(user_data['id']))
+            clients = await self.get_clients(session, endpoint)
+            clients_with_name = [d for d in clients if d['name'] == str(user_data['id'])]
+            wg_user_id = clients_with_name[0]["id"]
             if correlation_id == "changed server":
                 await self.client_repository.update_user_data(user_data['id'], 0, wg_id=result["id"], wg_server=endpoint, last_used_gigabytes=user_data['used_gigabytes'], used_gigabytes=0)
                 return result['id']
@@ -285,10 +288,12 @@ class WireguardService:
                 self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {
                     "status": False,
                 }}))
+            print(user_data)
+            print(result)
             self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {
                 "status": True,
-                "id": user_data['id'],
-                "wg_id": result["id"],
+                "id": str(user_data['id']),
+                "wg_id": str(wg_user_id),
                 "wg_server": endpoint,
             }}))
 
@@ -329,7 +334,7 @@ class WireguardService:
             result = await self.get_config(session, endpoint, user_data['wg_id'])
             self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
                 "status": True,
-                "output": b64.b64encode(result)
+                "output": str(b64.b64encode(result))
             }}))
 
 

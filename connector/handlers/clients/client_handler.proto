@@ -1,8 +1,6 @@
 syntax="proto3";
 
 package client_handler;
-
-import "google/protobuf/timestamp.proto"; 
 service ClientHandler {
 	rpc GetStatus(GetRequest) returns (stream StatusResponse){}
 	rpc GetConnectConfig(GetRequest) returns (stream ConfigResponse){}
@@ -28,22 +26,10 @@ message Ack {
 
 message InfoResponse {
 	bool status = 1;
-	string output = 2;
-	string connection_status = 3;
-	google.protobuf.Timestamp created_at = 4;
-	double gigabytes = 5;
-	google.protobuf.Timestamp last_connection = 6;
-	bool premium_status = 7;
-	google.protobuf.Timestamp premium_until = 8;
 }
 
 message ConfigResponse {
 	bool status = 1;
-	oneof config {
-		string output = 2;
-		Image image = 3;
-		Ack ack = 4;
-	}
 }
 
 message Image {
@@ -52,15 +38,6 @@ message Image {
 
 message ConnectResponseInfo {
 	bool status = 1;
-	string config = 2;
-	string image_data = 3;	
-	string uuid = 4;		
-	string wg_id = 5;
-	bool has_premium_status = 6;
-	google.protobuf.Timestamp premium_until = 7;
-	string enabled_status = 8;
-	google.protobuf.Timestamp created_at = 9;
-	bool need_to_disable = 10;
 }
 
 message ConnectResponse {
