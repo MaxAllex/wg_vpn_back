@@ -288,6 +288,8 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     print(msg)
                     data = msg.value
                     print(msg.value)
+                    print(msg.value['correlation_id'])
+                    print(msg.value['status_response'])
                     correlation_id = data['correlation_id']
                     if correlation_id == "changed server":
                         continue
