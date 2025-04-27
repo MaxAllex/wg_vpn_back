@@ -127,10 +127,10 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         response_queue = Queue()
         correlation_id = str(uuid.uuid4())
         self.active_requests[correlation_id] = response_queue
-        self.kafka_producer.send('config-requests', value={
+        self.kafka_producer.send('config-requests', value=({
             'correlation_id': correlation_id,
             'user_data': {"id": str(db_user_data.id)}
-        })
+        }))
 
         try:
             start_time = time.time()
