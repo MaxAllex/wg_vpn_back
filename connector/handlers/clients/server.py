@@ -25,6 +25,7 @@ import database
 
 class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
     def GetDbUserData(self, request, context, user_data) -> database.entities.client.Client:
+        print("hehehe")
         try:
             if "telegram_id" in user_data.keys():
                 user = asyncio.run(self.client_repo.get_client_by_telegram_id(user_data["telegram_id"]))
@@ -40,6 +41,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             return None
     
     def GetStatus(self, request, context):
+        print("ehere")
         ack_response = client_handler_pb2.StatusResponse()
         user_data = self.jwt_service.verify_token(request.access_token)
         
@@ -53,8 +55,6 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             yield ack_response
             return
         db_user_data = self.GetDbUserData(request, context, user_data)
-        with open("config.json", "r") as f:
-            f.write(str(db_user_data))
         if db_user_data is None:
             ack_response.ack.message = "User not found"
             yield ack_response
@@ -99,6 +99,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                 del self.active_requests[correlation_id]
 
     def GetConnectConfig(self, request, context):
+        print("eher")
         ack_response = client_handler_pb2.ConfigResponse()
         user_data = self.jwt_service.verify_token(request.access_token)
         if user_data == "Token expired":
@@ -149,6 +150,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                 del self.active_requests[correlation_id]
 
     def GetConnectQR(self, request, context):
+        print("ehereee")
         ack_response = client_handler_pb2.ConfigResponse()
         user_data = self.jwt_service.verify_token(request.access_token)
         if user_data == "Token expired":
@@ -199,6 +201,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                 del self.active_requests[correlation_id]
 
     def HandleConnect(self, request, context):
+        print("eher122")
         ack_response = client_handler_pb2.ConnectResponse()
         user_data = self.jwt_service.verify_token(request.access_token)
         if user_data == "Token expired":
