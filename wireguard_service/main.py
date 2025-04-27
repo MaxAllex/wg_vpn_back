@@ -249,7 +249,7 @@ class WireguardService:
             print("JFJIFJSKFJKLSJFKSJ")
             result = await self.get_config(session, endpoint, client_data.wg_id)
             print("JFJIFJSKFJKLSJFKSJ")
-            await self.client_repository.update_single_field(str(client_data.id), "config_file", b64.b64encode(result).decode("utf-8"))
+            await self.client_repository.update_single_field(str(client_data.id),0, "config_file", b64.b64encode(result).decode("utf-8"))
             print("JFJIFJSKFJKLSJFKSJ")
             self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {
                 "status": True
