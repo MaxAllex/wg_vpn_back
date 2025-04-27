@@ -70,32 +70,29 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             'user_data': {"id": str(db_user_data.id)}    
         })
 
-        try:
-            start_time = time.time()
-            while True:
-                try:
-                    response = response_queue.get(timeout=3)
-                    if not response['status']:
-                        if response['output'] == "Client not found":
-                            ack_response.ack.message = "User not found"
-                            yield ack_response
-                            return
-                        ack_response.ack.message = "Request failed"
+        start_time = time.time()
+        while True:
+            try:
+                response = response_queue.get(timeout=3)
+                if not response['status']:
+                    if response['output'] == "Client not found":
+                        ack_response.ack.message = "User not found"
                         yield ack_response
                         return
-                    
-                    ack_response.info.status = True
+                    ack_response.ack.message = "Request failed"
                     yield ack_response
                     return
-                except Empty:
-                    if time.time() - start_time > self.kafka_timeout_seconds:
-                        ack_response.ack.message = "Timeout"
-                        yield ack_response
-                        return
-                    continue
-        finally:
-            if correlation_id in self.active_requests:
-                del self.active_requests[correlation_id]
+                
+                ack_response.info.status = True
+                yield ack_response
+                return
+            except Empty:
+                if time.time() - start_time > self.kafka_timeout_seconds:
+                    ack_response.ack.message = "Timeout"
+                    yield ack_response
+                    return
+                continue
+
 
     def GetConnectConfig(self, request, context):
         print("eher")
@@ -244,35 +241,32 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             'correlation_id': correlation_id,
             'user_data': {"id":str(db_user_data.id)}
         })
-        try:
-            start_time = time.time()
-            while True:
-                try:
-                    print("here")
-                    response = response_queue.get(timeout=3)
-                    if not response['status']:
-                        print("here2")
-                        ack_response.ack.message = "Request failed"
-                        yield ack_response
-                        return
-                    print("here3")
-                    asyncio.run(self.client_repo.update_single_field(db_user_data.id, 0, "wg_id", response['wg_id']))
-                    asyncio.run(self.client_repo.update_single_field(db_user_data.id, 0, "wg_server", response['wg_server']))
-                    ack_response.info.status = True
-                    
-                    
+        
+        start_time = time.time()
+        while True:
+            try:
+                print("here")
+                response = response_queue.get(timeout=3)
+                if not response['status']:
+                    print("here2")
+                    ack_response.ack.message = "Request failed"
                     yield ack_response
-
                     return
-                except Empty:
-                    if time.time() - start_time > self.kafka_timeout_seconds:
-                        ack_response.ack.message = "Timeout"
-                        yield ack_response
-                        return
-                    continue
-        finally:
-            if correlation_id in self.active_requests:
-                del self.active_requests[correlation_id]
+                print("here3")
+                asyncio.run(self.client_repo.update_single_field(db_user_data.id, 0, "wg_id", response['wg_id']))
+                asyncio.run(self.client_repo.update_single_field(db_user_data.id, 0, "wg_server", response['wg_server']))
+                ack_response.info.status = True
+                
+                
+                yield ack_response
+                return
+            except Empty:
+                if time.time() - start_time > self.kafka_timeout_seconds:
+                    ack_response.ack.message = "Timeout"
+                    yield ack_response
+                    return
+                continue
+        
 
     def _start_kafka_consumer(self, bootstrap_servers):
         """Запускает фоновый поток для получения ответов из Kafka"""
