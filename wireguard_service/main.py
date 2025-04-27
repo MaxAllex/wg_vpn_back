@@ -352,12 +352,10 @@ class WireguardService:
             else:
                 latest_handshake_at = datetime.strptime("1970-01-01T00:00:00.000Z", "%Y-%m-%dT%H:%M:%S.%fZ")
             transfer_tx = client_data.get("transferTx", 0)
-            gigabytes_value = self.bytes_to_gb(transfer_tx) if transfer_tx else 0
+            await self.client_repository.update_single_field(user_data['id'], 0, "latest_handshake", latest_handshake_at)
 
             self.kafka_producer.send('info-responses', value=json.dumps({'correlation_id': correlation_id, 'status_response': {
                 "status": True,
-                "gigabytes": gigabytes_value,
-                "last_connection": latest_handshake_at
             }}))
         
         
