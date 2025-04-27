@@ -275,12 +275,12 @@ class WireguardService:
                 self.delete_client(session, start_endpoint, client_data.wg_id)
             client_data.wg_server = endpoint
             client_data.wg_id = temp_wg
-            await self.client_repository.update_single_field(user_data['id'], "wg_server", endpoint)
-            await self.client_repository.update_single_field(user_data['id'], "wg_id", temp_wg)
+            await self.client_repository.update_single_field(user_data['id'],0, "wg_server", endpoint)
+            await self.client_repository.update_single_field(user_data['id'],0, "wg_id", temp_wg)
 
         async with self.create_session(endpoint) as session:
             result = await self.get_config(session, endpoint, client_data.wg_id)
-            await self.client_repository.update_single_field(user_data['id'], "config_file", b64.b64encode(self.get_qr_code(result)).decode("utf-8"))
+            await self.client_repository.update_single_field(user_data['id'],0, "config_file", b64.b64encode(self.get_qr_code(result)).decode("utf-8"))
             self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
                 "status": True,
             }}))
