@@ -14,7 +14,8 @@ import logging
 import json
 from services.jwt import JWTService
 import threading
-from queue import Queue
+from queue import Queue, Empty
+
 import asyncio
 import uuid
 import database
@@ -22,15 +23,19 @@ import database
 
 class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
     def GetDbUserData(self, request, context, user_data) -> database.entities.client.Client:
-        if "telegram_id" in user_data.items():
-            user = asyncio.run(self.client_repo.get_client_by_telegram_id(user_data["telegram_id"]))
-            if user != None:
-                return user
-        if "app_token" in user_data.items():
-            user = asyncio.run(self.client_repo.get_client_by_app_token(user_data["telegram_id"]))
-            if user != None:
-                return user
-        return None
+        try:
+            if "telegram_id" in user_data.keys():
+                user = asyncio.run(self.client_repo.get_client_by_telegram_id(user_data["telegram_id"]))
+                if user != None:
+                    return user
+            if "app_token" in user_data.keys():
+                user = asyncio.run(self.client_repo.get_client_by_app_token(user_data["telegram_id"]))
+                if user != None:
+                    return user
+            return None
+        except Exception as e:
+            self.logger.error(f"Error getting user from database: {e}")
+            return None
     
     def GetStatus(self, request, context):
         ack_response = client_handler_pb2.StatusResponse()
@@ -84,7 +89,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     ack_response.info.premium_until = db_user_data.premium_status_is_valid_until
                     yield ack_response
                     return
-                except Queue.Empty:
+                except Empty:
                     if time.time() - start_time > self.kafka_timeout_seconds:
                         ack_response.ack.message = "Timeout"
                         yield ack_response
@@ -134,7 +139,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     ack_response.config.output = response['output']
                     yield ack_response
                     return
-                except Queue.Empty:
+                except Empty:
                     if time.time() - start_time > self.kafka_timeout_seconds:
                         ack_response.ack.message = "Timeout"
                         yield ack_response
@@ -184,7 +189,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     ack_response.image.image_data = response['image_data']
                     yield ack_response
                     return
-                except Queue.Empty:
+                except Empty:
                     if time.time() - start_time > self.kafka_timeout_seconds:
                         ack_response.ack.message = "Timeout"
                         yield ack_response
@@ -260,7 +265,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                     self.client_repo.update_single_field(db_user_data.id, 0, "wg_server", response['wg_server'])
                     
                     return
-                except Queue.Empty:
+                except Empty:
                     if time.time() - start_time > self.kafka_timeout_seconds:
                         ack_response.ack.message = "Timeout"
                         yield ack_response

@@ -24,10 +24,11 @@ class ClientRepository:
         self.db_name = POSTGRES_DB_NAME
         self.db_host = POSTGRES_HOST_NAME
         self.max_retries = max_retries
+        self.dsn = f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
     async def connect(self):
         try:
-            conn = await asyncpg.connect(f'{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}')
+            conn = await asyncpg.connect(self.dsn)
             return conn
         except Exception as e:
             self.logger.error(f"Error connecting to the database: {e}")
@@ -49,13 +50,12 @@ class ClientRepository:
             conn = await self.connect()
             
             query = """
-                    INSERT INTO users (id, telegram_id, wg_id, has_premium_status, premium_status_is_valid_until, 
+                    INSERT INTO users (telegram_id, wg_id, has_premium_status, premium_status_is_valid_until, 
                             config_file, qr_code, enabled_status, created_at, need_to_disable, jwt_version)
                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0);
                     """
             await conn.execute(
                                 query,
-                                client_data["id"],
                                 client_data["telegram_id"],
                                 client_data["wg_id"],
                                 client_data["has_premium_status"],

@@ -34,16 +34,18 @@ class WireguardService:
         db_clients = await self.client_repository.get_all_clients()
         for client in db_clients:
             if client.last_used_gigabytes + client.used_gigabytes > client.max_gigabytes and not client.has_premium_status and client.config_file is not None and client.config_file != "":
-                await self.kafka_producer.send("disable-client", json.dumps({"telegram_id": client.telegram_id, "wg_id": client.wg_id}).encode('utf-8'))
+                self.kafka_producer.send("disable-client", json.dumps({"telegram_id": client.telegram_id, "wg_id": client.wg_id}).encode('utf-8'))
                 await self.client_repository.update_user_data(client.id, 0, config_file=None, qr_code=None, enabled_status=False)
-                await self.delete_client(await self.create_session(client.wg_server), client.wg_server, client.wg_id)
+                async with self.create_session(client.wg_server) as session:
+                    await self.delete_client(session, client.wg_server, client.wg_id)
     
     async def scheduler_check_traffic(self):
         db_clients = await self.client_repository.get_all_clients()
         wg_clients = {}
         for client in db_clients:
             if client.wg_server is not None and client.wg_server != "" and client.wg_server not in wg_clients.keys():
-                wg_clients[client.wg_server] = await self.get_clients(await self.create_session(client.wg_server), client.wg_server)
+                async with self.create_session(client.wg_server) as session:
+                    wg_clients[client.wg_server] = await self.get_clients(session, client.wg_server)
         
         for clients in wg_clients.values():
             for client in clients:
@@ -63,7 +65,7 @@ class WireguardService:
             if client.last_used_gigabytes+client.used_gigabytes < client.max_gigabytes and client.max_gigabytes != 10:
                 max_gigabytes = 10+client.max_gigabytes-client.last_used_gigabytes-client.used_gigabytes
             await self.client_repository.update_user_data(client.id, 0, last_used_gigabytes=0, used_gigabytes=0,max_gigabytes=max_gigabytes, enabled_status=True)
-        await self.kafka_producer.send("upload-traffic", json.dumps({"telegram_id": 0}).encode('utf-8'))
+        self.kafka_producer.send("upload-traffic", json.dumps({"telegram_id": 0}).encode('utf-8'))
 
     async def scheduler_check_premium_status(self):
         db_clients = await self.client_repository.get_all_clients()
@@ -75,9 +77,9 @@ class WireguardService:
                 if client.premium_status_is_valid_until.date() <= today:
                     await self.client_repository.update_single_field(id, "has_premium_status", False)
                     await self.client_repository.update_single_field(id, "premium_status_is_valid_until", None)
-                    await self.kafka_producer.send("disable-premium", json.dumps({"telegram_id": telegram_id}).encode('utf-8'))
+                    self.kafka_producer.send("disable-premium", json.dumps({"telegram_id": telegram_id}).encode('utf-8'))
                 elif client.premium_status_is_valid_until.date() == reminder_date:
-                    await self.kafka_producer.send("premium-reminder", json.dumps({"telegram_id": telegram_id}).encode('utf-8'))
+                    self.kafka_producer.send("premium-reminder", json.dumps({"telegram_id": telegram_id}).encode('utf-8'))
 
 
     def run(self):
@@ -99,7 +101,19 @@ class WireguardService:
         )
 
         scheduler.start()
-        asyncio.run(self._start_kafka_consumer())
+        self._start_kafka_consumer()
+        try:
+            asyncio.get_event_loop().run_forever()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            scheduler.shutdown()
+
+    async def _keep_alive(self):
+        """Просто держит программу запущенной"""
+        while True:
+            await asyncio.sleep(1)
+
 
 
     async def get_config(self, session: ClientSession, endpoint: str, client_id: str) -> bytes:
@@ -208,70 +222,75 @@ class WireguardService:
 
     async def get_config_handler(self, user_data, correlation_id):
         if user_data['last_used_gigabytes'] + user_data['used_gigabytes'] > user_data['max_gigabytes']:
-            await self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
+            self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
             return
         endpoint = user_data["wg_server"]
         if not await self.check_alive(endpoint):
             start_endpoint = endpoint
             endpoint = await self.best_endpoint()
             if endpoint == "Failed":
-                await self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
+                self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
                 return
             temp_wg = await self.create_client_handler(user_data, "changed server")
-            self.delete_client(await self.create_session(start_endpoint), start_endpoint, user_data['wg_id'])
+            async with self.create_session(endpoint) as session:
+                self.delete_client(session, start_endpoint, user_data['wg_id'])
             user_data["wg_server"] = endpoint
             user_data["wg_id"] = temp_wg
         
-        session = await self.create_session(endpoint)
-        result = await self.get_config(session, endpoint, user_data['wg_id'])
-        await self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {
-            "status": True,
-            "output": b64.b64encode(result)
-        }}).encode('utf-8'))
+        async with self.create_session(endpoint) as session:
+            result = await self.get_config(session, endpoint, user_data['wg_id'])
+            self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {
+                "status": True,
+                "output": b64.b64encode(result)
+            }}).encode('utf-8'))
     
     async def get_qr_handler(self, user_data, correlation_id):
         if user_data['last_used_gigabytes'] + user_data['used_gigabytes'] > user_data['max_gigabytes']:
-            await self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
+            self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
             return
         endpoint = user_data["wg_server"]
         if not await self.check_alive(endpoint):
             start_endpoint = endpoint
             endpoint = await self.best_endpoint()
             if endpoint == "Failed":
-                await self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {"status": False}}).encode("utf-8"))
+                self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {"status": False}}).encode("utf-8"))
                 return
             temp_wg = await self.create_client_handler(user_data, "changed server")
-            self.delete_client(await self.create_session(start_endpoint), start_endpoint, user_data['wg_id'])
+            async with self.create_session(endpoint) as session:
+                self.delete_client(session, start_endpoint, user_data['wg_id'])
             user_data["wg_server"] = endpoint
             user_data["wg_id"] = temp_wg
 
-        session = await self.create_session(endpoint)
-        result = await self.get_config(session, endpoint, user_data['wg_id'])
-        await self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
-            "status": True,
-            "output": b64.b64encode(self.get_qr_code(result))
-        }}))
+        async with self.create_session(endpoint) as session:
+            self.create_session(endpoint)
+            await self.get_config(session, endpoint, user_data['wg_id'])
+            self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
+                "status": True,
+                "output": b64.b64encode(self.get_qr_code(result))
+            }}))
 
     async def create_client_handler(self, user_data, correlation_id):
+        print(user_data)
+        print(correlation_id)
         endpoint = await self.best_endpoint()
         if endpoint == "Failed":
-            await self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {"status": False}}).encode("utf-8"))
+            self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {"status": False}}).encode("utf-8"))
             return
-        session = await self.create_session(endpoint)
-        result = await self.create_client(session, endpoint, user_data['id'])
-        if correlation_id == "changed server":
-            await self.client_repository.update_user_data(user_data['id'], 0, wg_id=result["id"], wg_server=endpoint, last_used_gigabytes=user_data['used_gigabytes'], used_gigabytes=0)
-            return result['id']
-        if 'error' in result.keys() and result['error'] != '':
-            await self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {
-                "status": False,
+        async with self.create_session(endpoint) as session:
+            result = await self.create_client(session, endpoint, user_data['id'])
+            if correlation_id == "changed server":
+                await self.client_repository.update_user_data(user_data['id'], 0, wg_id=result["id"], wg_server=endpoint, last_used_gigabytes=user_data['used_gigabytes'], used_gigabytes=0)
+                return result['id']
+            if 'error' in result.keys() and result['error'] != '':
+                self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {
+                    "status": False,
+                }}))
+            self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {
+                "status": True,
+                "id": user_data['id'],
+                "wg_id": result["id"],
+                "wg_server": endpoint,
             }}))
-        await self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {
-            "status": True,
-            "id": user_data['id'],
-            "wg_id": result["id"],
-            "wg_server": endpoint,
-        }}))
 
     def get_qr_code(self, configuration):
         """Генерация QR-кода для конфигурации."""
@@ -306,12 +325,12 @@ class WireguardService:
 
     async def get_qr_handler(self, user_data, correlation_id):
         endpoint = user_data["wg_server"]
-        session = await self.create_session(endpoint)
-        result = await self.get_config(session, endpoint, user_data['wg_id'])
-        await self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
-            "status": True,
-            "output": b64.b64encode(result)
-        }}))
+        async with self.create_session(endpoint) as session:
+            result = await self.get_config(session, endpoint, user_data['wg_id'])
+            self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
+                "status": True,
+                "output": b64.b64encode(result)
+            }}))
 
 
     def bytes_to_db(self, bytes_value):
@@ -322,28 +341,28 @@ class WireguardService:
     async def get_user_handler(self, user_data, correlation_id):
         endpoint = user_data["wg_server"]
         wg_id = user_data['wg_id']
-        session = await self.create_session(endpoint)
-        clients = await self.get_clients(session, endpoint)
-        client_data = next((c for c in clients if c["id"] == str(wg_id)), None)
-        if not client_data:
-            self.kafka_producer.send('info-responses', value=json.dumps({'correlation_id': correlation_id, 'status_response': {
-                "status": False,
-                "output": "Client not found"
-            }}))
-            return
-        latest_handshake_at = client_data.get("latestHandshakeAt")
-        if latest_handshake_at:
-            latest_handshake_at = datetime.strptime(latest_handshake_at, "%Y-%m-%dT%H:%M:%S.%fZ")
-        else:
-            latest_handshake_at = datetime.strptime("1970-01-01T00:00:00.000Z", "%Y-%m-%dT%H:%M:%S.%fZ")
-        transfer_tx = client_data.get("transferTx", 0)
-        gigabytes_value = self.bytes_to_gb(transfer_tx) if transfer_tx else 0
+        async with self.create_session(endpoint) as session:
+            clients = await self.get_clients(session, endpoint)
+            client_data = next((c for c in clients if c["id"] == str(wg_id)), None)
+            if not client_data:
+                self.kafka_producer.send('info-responses', value=json.dumps({'correlation_id': correlation_id, 'status_response': {
+                    "status": False,
+                    "output": "Client not found"
+                }}))
+                return
+            latest_handshake_at = client_data.get("latestHandshakeAt")
+            if latest_handshake_at:
+                latest_handshake_at = datetime.strptime(latest_handshake_at, "%Y-%m-%dT%H:%M:%S.%fZ")
+            else:
+                latest_handshake_at = datetime.strptime("1970-01-01T00:00:00.000Z", "%Y-%m-%dT%H:%M:%S.%fZ")
+            transfer_tx = client_data.get("transferTx", 0)
+            gigabytes_value = self.bytes_to_gb(transfer_tx) if transfer_tx else 0
 
-        await self.kafka_producer.send('info-responses', value=json.dumps({'correlation_id': correlation_id, 'status_response': {
-            "status": True,
-            "gigabytes": gigabytes_value,
-            "last_connection": latest_handshake_at
-        }}))
+            self.kafka_producer.send('info-responses', value=json.dumps({'correlation_id': correlation_id, 'status_response': {
+                "status": True,
+                "gigabytes": gigabytes_value,
+                "last_connection": latest_handshake_at
+            }}))
         
         
     async def _process_message(self, topic: str, user_data: dict, correlation_id: str):
@@ -356,7 +375,7 @@ class WireguardService:
         elif topic == 'qr-requests':
             await self.get_qr_handler(user_data, correlation_id)
 
-    async def _start_kafka_consumer(self):
+    def _start_kafka_consumer(self):
         loop = asyncio.get_event_loop()
         def consume_responses():
             consumer = KafkaConsumer(

@@ -24,10 +24,11 @@ class ClientRepository:
         self.db_name = POSTGRES_DB_NAME
         self.db_host = POSTGRES_HOST_NAME
         self.max_retries = max_retries
+        self.dsn = f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
     async def connect(self):
         try:
-            conn = await asyncpg.connect(f'{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}')
+            conn = await asyncpg.connect(self.dsn)
             return conn
         except Exception as e:
             self.logger.error(f"Error connecting to the database: {e}")
@@ -47,24 +48,33 @@ class ClientRepository:
     async def save_client(self, client_data: dict, retry_count: int = 0) -> str:
         try:
             conn = await self.connect()
-            
+            """
+                id: UUID
+    telegram_id: Optional[int]
+    wg_id: Optional[str]
+    has_premium_status: Optional[bool]
+    premium_status_is_valid_until: Optional[datetime]
+    config_file: Optional[str]
+    qr_code: Optional[str]
+    enabled_status: Optional[bool]
+    created_at: Optional[datetime]
+    need_to_disable: Optional[bool]
+    wg_server: Optional[str]
+    last_used_gigabytes: Optional[float]
+    used_gigabytes: Optional[float]
+    max_gigabytes: Optional[float]
+    jwt_version: Optional[int]
+    latest_handshake: Optional[datetime]
+    app_token: Optional[str]
+            """
             query = """
-                    INSERT INTO users (id, telegram_id, wg_id, has_premium_status, premium_status_is_valid_until, 
-                            config_file, qr_code, enabled_status, created_at, need_to_disable, jwt_version)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0);
+                    INSERT INTO users (telegram_id, wg_id, has_premium_status, premium_status_is_valid_until, config_file, qr_code, enabled_status, created_at, need_to_disable, wg_server, last_used_gigabytes, used_gigabytes, max_gigabytes, jwt_version, latest_handshake, app_token) VALUES ($1,'', false,now(), '', '', false, now(), false, '', 0, 0, 0, 0, now(), '');
                     """
             await conn.execute(
                                 query,
-                                client_data["id"],
+                                
                                 client_data["telegram_id"],
-                                client_data["wg_id"],
-                                client_data["has_premium_status"],
-                                client_data["premium_status_is_valid_until"],
-                                client_data["config_file"],
-                                client_data["qr_code"],
-                                client_data["enabled_status"],
-                                client_data["created_at"],
-                                client_data["need_to_disable"]
+                                
                                 )
             self.logger.info(f"Клиент {client_data['telegram_id']} сохранен в базе данных")
             return None
