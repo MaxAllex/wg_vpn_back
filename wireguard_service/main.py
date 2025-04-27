@@ -334,7 +334,7 @@ class WireguardService:
 
     
     async def check_alive(self, endpoint):
-        url = f"http://{endpoint}/api/wireguard/client"
+        url = f"http://{endpoint}/"
         try:
             async with ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
                 async with session.get(url) as response:
