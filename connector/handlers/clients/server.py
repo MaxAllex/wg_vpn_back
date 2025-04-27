@@ -100,6 +100,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
     def GetConnectConfig(self, request, context):
         print("eher")
         ack_response = client_handler_pb2.ConfigResponse()
+        print("eher2")
         user_data = self.jwt_service.verify_token(request.access_token)
         if user_data == "Token expired":
             ack_response.ack.message = "Token expired"
