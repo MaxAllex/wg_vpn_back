@@ -335,6 +335,7 @@ class WireguardService:
     
 
     async def get_user_handler(self, user_data, correlation_id):
+        print(user_data)
         endpoint = user_data["wg_server"]
         wg_id = user_data['wg_id']
         async with self.create_session(endpoint) as session:
@@ -353,7 +354,7 @@ class WireguardService:
                 latest_handshake_at = datetime.strptime("1970-01-01T00:00:00.000Z", "%Y-%m-%dT%H:%M:%S.%fZ")
             transfer_tx = client_data.get("transferTx", 0)
             await self.client_repository.update_single_field(user_data['id'], 0, "latest_handshake", latest_handshake_at)
-
+            print("here")
             self.kafka_producer.send('info-responses', value=json.dumps({'correlation_id': correlation_id, 'status_response': {
                 "status": True,
             }}))
