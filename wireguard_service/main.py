@@ -241,18 +241,26 @@ class WireguardService:
         async with self.create_session(endpoint) as session:
             config_bytes = await self.get_config(session, endpoint, client_data.wg_id)
             if not config_bytes:
-                self._send_kafka_response(correlation_id, False)
+                self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {"status": False}})
                 return
-            config_b64 = b64.b64encode(config_bytes).decode('utf-8')
-            qr_code = self.get_qr_code(config_bytes)
-            qr_b64 = b64.b64encode(qr_code).decode('utf-8') if qr_code else None
+            try:
+                config_b64 = b64.b64encode(config_bytes).decode('utf-8')
+                qr_code = self.get_qr_code(config_bytes)
+                qr_b64 = b64.b64encode(qr_code).decode('utf-8') if qr_code else None
+            except Exception as e:
+                self.logger.error(f"Ошибка при кодировании конфигурации: {e}")
+                self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {"status": False}})
+                return
 
             await self.client_repository.update_user_data(
                 str(client_data.id),
                 config_file=config_b64,
                 qr_code=qr_b64
             )
-
+           
+            self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {
+                "status": True,
+            }})
         
     
 
