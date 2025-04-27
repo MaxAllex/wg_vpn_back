@@ -53,7 +53,8 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             yield ack_response
             return
         db_user_data = self.GetDbUserData(request, context, user_data)
-        
+        with open("config.json", "r") as f:
+            f.write(str(db_user_data))
         if db_user_data is None:
             ack_response.ack.message = "User not found"
             yield ack_response

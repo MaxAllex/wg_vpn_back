@@ -109,7 +109,7 @@ class ClientRepository:
             if len(client) == 0:
                 return None
             client_data = client[0]
-            print(client_data)
+            
             return Client(
                 id=str(client_data['id']),
                 telegram_id=client_data['telegram_id'],
