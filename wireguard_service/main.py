@@ -246,7 +246,7 @@ class WireguardService:
             try:
                 qr_code = self.get_qr_code(config_bytes)
                 await self.client_repository.update_single_field(str(client_data.id),0, "qr_code", qr_code)
-                await self.client_repository.update_single_field(str(client_data.id),0, "config_file", config_bytes.decodefix?('utf-8'))
+                await self.client_repository.update_single_field(str(client_data.id),0, "config_file", config_bytes.decode('utf-8'))
             except Exception as e:
                 self.logger.error(f"Ошибка при кодировании конфигурации: {e}")
                 self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {"status": False}})
