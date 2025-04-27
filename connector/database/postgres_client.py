@@ -146,6 +146,7 @@ class ClientRepository:
                 id=str(client_data['id']),
                 telegram_id=client_data['telegram_id'],
                 wg_id=str(client_data['wg_id']),
+                wg_server=str(client_data['wg_server']),
                 has_premium_status=client_data['has_premium_status'],
                 premium_status_is_valid_until=client_data['premium_status_is_valid_until'],
                 config_file=client_data['config_file'],
@@ -176,6 +177,7 @@ class ClientRepository:
             return Client(
                 id=client_data['id'],
                 telegram_id=client_data['telegram_id'],
+                wg_server=str(client_data['wg_server']),
                 wg_id=client_data['wg_id'],
                 has_premium_status=client_data['has_premium_status'],
                 premium_status_is_valid_until=client_data['premium_status_is_valid_until'],
