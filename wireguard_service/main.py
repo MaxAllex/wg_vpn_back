@@ -249,11 +249,11 @@ class WireguardService:
             print("JFJIFJSKFJKLSJFKSJ")
             result = await self.get_config(session, endpoint, client_data.wg_id)
             print("JFJIFJSKFJKLSJFKSJ")
-            await self.client_repository.update_single_field(str(client_data.id),0, "config_file", b64.b64encode(result).decode("utf-8"))
+            await self.client_repository.update_single_field(str(client_data.id), "config_file", b64.b64encode(result).decode("utf-8"))
             print("JFJIFJSKFJKLSJFKSJ")
             self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {
                 "status": True
-            }}).encode('utf-8'))
+            }}))
             print("JFJIFJSKFJKLSJFKSJssss")
 
     
@@ -283,7 +283,7 @@ class WireguardService:
             await self.client_repository.update_single_field(uuid=client_data.id,retry_count=0, field="config_file", value=b64.b64encode(self.get_qr_code(result)).decode("utf-8"))
             self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
                 "status": True,
-            }}).encode('utf-8'))
+            }}))
 
     async def create_client_handler(self, user_data, correlation_id):
         endpoint = await self.best_endpoint()
@@ -301,7 +301,7 @@ class WireguardService:
             if 'error' in result.keys() and result['error'] != '':
                 self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {
                     "status": False,
-                }}).encode('utf-8'))
+                }}))
             print(user_data)
             print(result)
             self.kafka_producer.send('connect-responses', value=json.dumps({'correlation_id': correlation_id, 'connect_response': {
@@ -309,7 +309,7 @@ class WireguardService:
                 "id": str(user_data['id']),
                 "wg_id": str(wg_user_id),
                 "wg_server": endpoint,
-            }}).encode('utf-8'))
+            }}))
 
     def get_qr_code(self, configuration):
         """Генерация QR-кода для конфигурации."""
@@ -359,7 +359,7 @@ class WireguardService:
                 self.kafka_producer.send('info-responses', value=json.dumps({'correlation_id': correlation_id, 'status_response': {
                     "status": False,
                     "output": "Client not found"
-                }}).encode('utf-8'))
+                }}))
                 return
             latest_handshake_at = client_data.get("latestHandshakeAt")
             if latest_handshake_at:
@@ -370,7 +370,7 @@ class WireguardService:
             await self.client_repository.update_single_field(user_data['id'], 0, "latest_handshake", latest_handshake_at)
             self.kafka_producer.send('info-responses', value=json.dumps({'correlation_id': correlation_id, 'status_response': {
                 "status": True,
-            }}).encode('utf-8'))
+            }}))
         
         
     async def _process_message(self, topic: str, user_data: dict, correlation_id: str):
