@@ -116,6 +116,8 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             return
         
         ack_response.ack.message = "Request received"
+        print(ack_response)
+        print(db_user_data)
         yield ack_response
         
         response_queue = Queue()
