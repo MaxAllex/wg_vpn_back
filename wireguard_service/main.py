@@ -237,7 +237,9 @@ class WireguardService:
                 self.delete_client(session, start_endpoint, client_data.wg_id)
             client_data.wg_server = endpoint
             client_data.wg_id = temp_wg
+            print("error here")
             await self.client_repository.update_single_field(str(client_data.id), "wg_server", endpoint)
+            print("or here")
             await self.client_repository.update_single_field(str(client_data.id), "wg_id", temp_wg)
 
         print("JFJIFJSKFJKLSJFKSJ2312312312")
