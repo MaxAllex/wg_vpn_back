@@ -285,22 +285,15 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             consumer.subscribe(['config-responses', 'qr-responses', 'info-responses', 'connect-responses'])
             for msg in consumer:
                 try:
-                    print(msg)
                     data = msg.value
-                    print(msg.value)
-                    print(msg.value['correlation_id'])
-                    print(msg.value['status_response'])
                     correlation_id = data['correlation_id']
+                    print(correlation_id)
+                    print(self.active_requests)
+                    print(correlation_id in self.active_requests)
                     if correlation_id == "changed server":
                         continue
-
-
                     elif correlation_id in self.active_requests:
-                        print(correlation_id)
                         response_queue = self.active_requests[correlation_id]
-                        print(response_queue)
-                        if correlation_id not in self.active_requests:
-                            print("hehehehe")
                         if 'status_response' in data.keys():
                             print("status_response")
                             response_queue.put(
