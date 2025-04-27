@@ -251,12 +251,6 @@ class WireguardService:
                 self.logger.error(f"Ошибка при кодировании конфигурации: {e}")
                 self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {"status": False}})
                 return
-
-            await self.client_repository.update_user_data(
-                str(client_data.id),
-                config_file=config_b64,
-                qr_code=qr_b64
-            )
            
             self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {
                 "status": True,
