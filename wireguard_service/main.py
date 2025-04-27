@@ -224,7 +224,7 @@ class WireguardService:
             self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
             return
         endpoint = client_data.wg_server
-        print(client_data)
+        print(endpoint)
         if not await self.check_alive(endpoint):
             start_endpoint = endpoint
             endpoint = await self.best_endpoint()
@@ -239,7 +239,7 @@ class WireguardService:
             client_data.wg_id = temp_wg
             await self.client_repository.update_single_field(user_data['id'], "wg_server", endpoint)
             await self.client_repository.update_single_field(user_data['id'], "wg_id", temp_wg)
-        
+
         
         async with self.create_session(endpoint) as session:
             print("JFJIFJSKFJKLSJFKSJ")
