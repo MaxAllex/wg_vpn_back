@@ -239,12 +239,20 @@ class WireguardService:
             await self.client_repository.update_single_field(str(client_data.id),0, "wg_id", temp_wg)
 
         async with self.create_session(endpoint) as session:
-            result = await self.get_config(session, endpoint, client_data.wg_id)
-            await self.client_repository.update_single_field(str(client_data.id),0, "config_file", b64.b64encode(result.decode("utf-8")).decode("utf-8"))
-            await self.client_repository.update_single_field(str(client_data.id),0, "qr_code", b64.b64encode(self.get_qr_code(result.decode("utf-8"))).decode("utf-8"))
-            self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {
-                "status": True
-            }})
+            config_bytes = await self.get_config(session, endpoint, client_data.wg_id)
+            if not config_bytes:
+                self._send_kafka_response(correlation_id, False)
+                return
+            config_b64 = b64.b64encode(config_bytes).decode('utf-8')
+            qr_code = self.get_qr_code(config_bytes)
+            qr_b64 = b64.b64encode(qr_code).decode('utf-8') if qr_code else None
+
+            await self.client_repository.update_user_data(
+                str(client_data.id),
+                config_file=config_b64,
+                qr_code=qr_b64
+            )
+
         
     
 
