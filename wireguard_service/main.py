@@ -238,7 +238,7 @@ class WireguardService:
             start_endpoint = endpoint
             endpoint = await self.best_endpoint()
             if endpoint == "Failed":
-                self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {"status": False}}).encode("utf-8"))
+                self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {"status": False}}).encode("utf-8"))
                 return
             print(client_data)
             temp_wg = await self.create_client_handler(user_data, "changed server")
@@ -251,9 +251,11 @@ class WireguardService:
 
         
         async with self.create_session(endpoint) as session:
+            print("JFJIFJSKFJKLSJFKSJ")
             result = await self.get_config(session, endpoint, client_data.wg_id)
+            print("JFJIFJSKFJKLSJFKSJ")
             await self.client_repository.update_single_field(user_data['id'], "config_file", b64.b64encode(result).decode("utf-8"))
-            print(result)
+            print("JFJIFJSKFJKLSJFKSJ")
             self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {
                 "status": True
             }}).encode('utf-8'))
@@ -263,7 +265,7 @@ class WireguardService:
         
         client_data = await self.client_repository.get_client_by_user_id(user_data['id'])
         if client_data.last_used_gigabytes + client_data.used_gigabytes > client_data.max_gigabytes and not client_data.has_premium_status:
-            self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
+            self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {"status": False}}).encode("utf-8"))
             return
         endpoint = client_data.wg_server
         if not await self.check_alive(endpoint):
@@ -281,7 +283,6 @@ class WireguardService:
             await self.client_repository.update_single_field(user_data['id'], "wg_id", temp_wg)
 
         async with self.create_session(endpoint) as session:
-            self.create_session(endpoint)
             result = await self.get_config(session, endpoint, client_data.wg_id)
             await self.client_repository.update_single_field(user_data['id'], "config_file", b64.b64encode(self.get_qr_code(result)).decode("utf-8"))
             self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
