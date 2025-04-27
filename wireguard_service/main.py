@@ -240,16 +240,16 @@ class WireguardService:
             client_data.wg_server = endpoint
             client_data.wg_id = temp_wg
             print("error here")
-            await self.client_repository.update_single_field(str(client_data.id), "wg_server", endpoint)
+            await self.client_repository.update_single_field(str(client_data.id),0, "wg_server", endpoint)
             print("or here")
-            await self.client_repository.update_single_field(str(client_data.id), "wg_id", temp_wg)
+            await self.client_repository.update_single_field(str(client_data.id),0, "wg_id", temp_wg)
 
         print("JFJIFJSKFJKLSJFKSJ2312312312")
         async with self.create_session(endpoint) as session:
             print("JFJIFJSKFJKLSJFKSJ")
             result = await self.get_config(session, endpoint, client_data.wg_id)
             print("JFJIFJSKFJKLSJFKSJ")
-            await self.client_repository.update_single_field(str(client_data.id), "config_file", b64.b64encode(result).decode("utf-8"))
+            await self.client_repository.update_single_field(str(client_data.id),0, "config_file", b64.b64encode(result).decode("utf-8"))
             print("JFJIFJSKFJKLSJFKSJ")
             self.kafka_producer.send('config-responses', value=json.dumps({'correlation_id': correlation_id, 'config_response': {
                 "status": True
@@ -280,7 +280,7 @@ class WireguardService:
 
         async with self.create_session(endpoint) as session:
             result = await self.get_config(session, endpoint, client_data.wg_id)
-            await self.client_repository.update_single_field(user_data['id'],0, "config_file", b64.b64encode(self.get_qr_code(result)).decode("utf-8"))
+            await self.client_repository.update_single_field(uuid=client_data.id,retry_count=0, field="config_file", value=b64.b64encode(self.get_qr_code(result)).decode("utf-8"))
             self.kafka_producer.send('qr-responses', value=json.dumps({'correlation_id': correlation_id, 'qr_response': {
                 "status": True,
             }}))
