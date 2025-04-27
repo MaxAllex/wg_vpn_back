@@ -299,6 +299,7 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
                         if correlation_id not in self.active_requests:
                             print("hehehehe")
                         if 'status_response' in data.keys():
+                            print("status_response")
                             response_queue.put(
                                 data['status_response']
                             )
