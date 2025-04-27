@@ -340,7 +340,7 @@ class WireguardService:
         wg_id = user_data['wg_id']
         async with self.create_session(endpoint) as session:
             clients = await self.get_clients(session, endpoint)
-            client_data = next((c for c in clients if c["id"] == str(wg_id)), None)
+            client_data = next((c for c in clients if str(c["id"]) == str(wg_id)), None)
             if not client_data:
                 self.kafka_producer.send('info-responses', value=json.dumps({'correlation_id': correlation_id, 'status_response': {
                     "status": False,
@@ -378,7 +378,7 @@ class WireguardService:
                 group_id='config-gateway-group',
                 auto_offset_reset='earliest',
                 value_deserializer=lambda v: json.loads(v.decode('utf-8')))
-            consumer.subscribe(['config-requests','connect-requests', "status-requests", "qr-requests"])
+            consumer.subscribe(['config-requests','connect-requests', "info-requests", "qr-requests"])
             for msg in consumer:
                 try:
                     data = msg.value
