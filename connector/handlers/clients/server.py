@@ -103,15 +103,18 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         user_data = self.jwt_service.verify_token(request.access_token)
         if user_data == "Token expired":
             ack_response.ack.message = "Token expired"
+            print(ack_response)
             yield ack_response
             return
         if user_data == "Invalid token":
             ack_response.ack.message = "Invalid token"
+            print(ack_response)
             yield ack_response
             return
         db_user_data = self.GetDbUserData(request, context, user_data)
         if db_user_data is None:
             ack_response.ack.message = "User not found"
+            print(ack_response)
             yield ack_response
             return
         
