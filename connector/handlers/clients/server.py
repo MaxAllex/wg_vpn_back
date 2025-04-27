@@ -45,7 +45,6 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
         print("here2")
         user_data = self.jwt_service.verify_token(request.access_token)
         print(user_data)
-        print({"id": str(db_user_data.id), "used_gigabytes": db_user_data.used_gigabytes,"wg_id": str(db_user_data.wg_id), "wg_server": db_user_data.wg_server, "max_gigabytes": db_user_data.max_gigabytes, "last_used_gigabytes": db_user_data.last_used_gigabytes})
         
         if user_data == "Token expired":
             ack_response.ack.message = "Token expired"
@@ -57,6 +56,8 @@ class ClientHandlerService(client_handler_pb2_grpc.ClientHandlerServicer):
             yield ack_response
             return
         db_user_data = self.GetDbUserData(request, context, user_data)
+        print({"id": str(db_user_data.id), "used_gigabytes": db_user_data.used_gigabytes,"wg_id": str(db_user_data.wg_id), "wg_server": db_user_data.wg_server, "max_gigabytes": db_user_data.max_gigabytes, "last_used_gigabytes": db_user_data.last_used_gigabytes})
+        
         print(db_user_data)
         if db_user_data is None:
             ack_response.ack.message = "User not found"
