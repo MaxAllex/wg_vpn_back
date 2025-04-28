@@ -283,7 +283,7 @@ class WireguardService:
                 await self.client_repository.update_single_field(str(client_data.id),0, "wg_id", str(wg_user_id))
                 await self.client_repository.update_single_field(str(client_data.id),0,"enabled_status", True)
                 print("gere")
-                self.kafka_producer.send(f'{source}-connect-responses', value={'status':False, 'id': client_data.id})
+                self.kafka_producer.send(f'{source}-connect-responses', value={'status':True, 'id': client_data.id})
         except Exception as e:
             self.logger.error(f"Ошибка при создании клиента: {e}")
             self.kafka_producer.send(f'{source}-connect-responses', value={'status':False, 'id': client_data.id})
