@@ -50,12 +50,17 @@ class WireguardService:
         for clients in wg_clients.values():
             for client in clients:
                 for db_client in db_clients:
-                    if str(db_client.wg_id) == str(client['id']):
-                        transfer_tx = client.get("transferTx", 0)
-                        gigabytes_value = self.bytes_to_gb(transfer_tx) if transfer_tx else 0
-                        self.client_repository.update_single_field(str(db_client.id), 0, "gigabytes", gigabytes_value)
-                        self.client_repository.update_single_field(str(db_client.id), 0, "latest_handshake", client['latestHandshakeAt'])
-                        break
+                    try:
+                        if str(db_client.wg_id) == str(client['id']):
+                            transfer_tx = client.get("transferTx", 0)
+                            gigabytes_value = self.bytes_to_gb(transfer_tx) if transfer_tx else 0
+                            self.client_repository.update_single_field(str(db_client.id), 0, "gigabytes", gigabytes_value)
+                            self.client_repository.update_single_field(str(db_client.id), 0, "latest_handshake", client['latestHandshakeAt'])
+                            break
+                    except Exception as e:
+                        self.logger.error(f"error iterating in db: {e}")
+        await self.second_step_check_traffic()
+                    
 
 
     async def scheduler_upload_traffic_for_users(self):
@@ -279,28 +284,6 @@ class WireguardService:
         except Exception as e:
             self.logger.error(f"Ошибка при создании клиента: {e}")
             self.kafka_producer.send(f'{source}-connect-responses', value={'status':False, 'id': client_data.id})
-
-    def get_qr_code(self, configuration):
-        """Генерация QR-кода для конфигурации."""
-        try:
-            qr = QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=10,
-                border=2,
-            )
-
-            qr.add_data(configuration)
-            qr.make(fit=True)
-
-            img = qr.make_image(fill_color="black", back_color="white")
-            img_io = BytesIO()
-            img.save(img_io, "PNG")
-            img_io.seek(0)
-            return str(img_io)
-        except Exception as e:
-            self.logger.error(f"Ошибка при генерации QR-кода: {e}")
-
     
     async def check_alive(self, endpoint):
         url = f"http://{endpoint}/"
@@ -317,45 +300,12 @@ class WireguardService:
         return round(gb_value, 2)
     
 
-    async def get_user_handler(self, user_data, correlation_id):
-        try:
-            client_data = await self.client_repository.get_client_by_user_id(user_data['id'])
-            endpoint = client_data.wg_server
-            wg_id = client_data.wg_id
-            async with self.create_session(endpoint) as session:
-                clients = await self.get_clients(session, endpoint)
-                client_data = next((c for c in clients if str(c["id"]) == str(wg_id)), None)
-                if not client_data:
-                    self.kafka_producer.send('info-responses', value={'correlation_id': correlation_id, 'status_response': {
-                        "status": False,
-                        "output": "Client not found"
-                    }})
-                    return
-                latest_handshake_at = client_data.get("latestHandshakeAt")
-                if latest_handshake_at:
-                    latest_handshake_at = datetime.datetime.strptime(latest_handshake_at, "%Y-%m-%dT%H:%M:%S.%fZ")
-                else:
-                    latest_handshake_at = datetime.datetime.strptime("1970-01-01T00:00:00.000Z", "%Y-%m-%dT%H:%M:%S.%fZ")
-                transfer_tx = client_data.get("transferTx", 0)
-                await self.client_repository.update_single_field(user_data['id'], 0, "latest_handshake", latest_handshake_at)
-                self.kafka_producer.send('info-responses', value={'correlation_id': correlation_id, 'status_response': {
-                    "status": True,
-                }})
-        except Exception as e:
-            self.logger.error(f"Ошибка при получении информации о клиенте: {e}")
-            self.kafka_producer.send('info-responses', value={'correlation_id': correlation_id, 'status_response': {
-                "status": False,
-            }})
         
     async def _process_message(self, topic: str, user_data: dict, source:str):
         if topic == 'config-requests':
             await self.get_config_handler(user_data, source)
         elif topic == 'connect-requests':
             await self.create_client_handler(user_data, source)
-        elif topic == 'info-requests':
-            await self.get_user_handler(user_data, source)
-        elif topic == 'qr-requests':
-            await self.get_qr_handler(user_data, source)
 
     def _start_kafka_consumer(self):
         loop = asyncio.get_event_loop()
@@ -365,7 +315,7 @@ class WireguardService:
                 group_id='config-gateway-group',
                 auto_offset_reset='earliest',
                 value_deserializer=lambda v: json.loads(v.decode('utf-8')))
-            consumer.subscribe(['config-requests','connect-requests', "info-requests", "qr-requests"])
+            consumer.subscribe(['config-requests','connect-requests'])
             for msg in consumer:
                 try:
                     data = msg.value
