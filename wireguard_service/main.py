@@ -218,20 +218,20 @@ class WireguardService:
     """
 
 
-    async def get_config_handler(self, user_data, correlation_id):
+    async def get_config_handler(self, user_data, source):
         try:
             client_data = await self.client_repository.get_client_by_user_id(user_data['id'])
             if client_data.last_used_gigabytes + client_data.used_gigabytes > client_data.max_gigabytes and not client_data.has_premium_status:
-                self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {"status": False}})
+                self.kafka_producer.send(f'{source}-config-responses', value={'status':False, 'id': client_data.id})
                 return
             endpoint = client_data.wg_server
             if not await self.check_alive(endpoint):
                 start_endpoint = endpoint
                 endpoint = await self.best_endpoint()
                 if endpoint == "Failed":
-                    self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'qr_response': {"status": False}})
+                    self.kafka_producer.send(f'{source}-config-responses', value={'status':False, 'id': client_data.id})
                     return
-                temp_wg = await self.create_client_handler(user_data, "changed server")
+                temp_wg = await self.create_client_handler(user_data, source, True)
                 async with self.create_session(endpoint) as session:
                     self.delete_client(session, start_endpoint, client_data.wg_id)
                 client_data.wg_server = endpoint
@@ -242,54 +242,43 @@ class WireguardService:
             async with self.create_session(endpoint) as session:
                 config_bytes = await self.get_config(session, endpoint, client_data.wg_id)
                 if not config_bytes:
-                    self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {"status": False}})
+                    self.kafka_producer.send(f'{source}-config-responses', value={'status':False, 'id': client_data.id})
                     return
                 try:
                     config_bytes = b64.b64encode(config_bytes)
                     await self.client_repository.update_single_field(str(client_data.id),0, "config_file", config_bytes.decode('utf-8'))
-                    self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {
-                    "status": True,
-                }})
+                    self.kafka_producer.send(f'{source}-config-responses', value={'status':True, 'id': client_data.id})
                 except Exception as e:
                     self.logger.error(f"Ошибка при кодировании конфигурации: {e}")
-                    self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {"status": False}})
+                    self.kafka_producer.send(f'{source}-config-responses', value={'status':False, 'id': client_data.id})
                     return
         except Exception as e:
             self.logger.error(f"Ошибка при получении конфигурации: {e}")
-            self.kafka_producer.send('config-responses', value={'correlation_id': correlation_id, 'config_response': {"status": False}})
+            self.kafka_producer.send(f'{source}-config-responses', value={'status':False, 'id': client_data.id})
 
-        
-    
-
-    async def create_client_handler(self, user_data, correlation_id):
+    async def create_client_handler(self, user_data, source, is_changed=False):
         try:
             endpoint = await self.best_endpoint()
+            client_data = await self.client_repository.get_client_by_user_id(user_data['id'])
             if endpoint == "Failed":
-                self.kafka_producer.send('connect-responses', value={'correlation_id': correlation_id, 'connect_response': {"status": False}})
+                self.kafka_producer.send(f'{source}-connect-responses', value={'status':False, 'id': client_data.id})
                 return
             async with self.create_session(endpoint) as session:
                 result = await self.create_client(session, endpoint, str(user_data['id']))
                 clients = await self.get_clients(session, endpoint)
                 clients_with_name = [d for d in clients if d['name'] == str(user_data['id'])]
                 wg_user_id = clients_with_name[0]["id"]
-                if correlation_id == "changed server":
+                if is_changed:
                     await self.client_repository.update_user_data(user_data['id'], 0, wg_id=result["id"], wg_server=endpoint, last_used_gigabytes=user_data['used_gigabytes'], used_gigabytes=0)
                     return result['id']
                 if 'error' in result.keys() and result['error'] != '':
-                    self.kafka_producer.send('connect-responses', value={'correlation_id': correlation_id, 'connect_response': {
-                        "status": False,
-                    }})
-                print(user_data)
-                print(result)
-                self.kafka_producer.send('connect-responses', value={'correlation_id': correlation_id, 'connect_response': {
-                    "status": True,
-                    "id": str(user_data['id']),
-                    "wg_id": str(wg_user_id),
-                    "wg_server": endpoint,
-                }})
+                    self.kafka_producer.send(f'{source}-connect-responses', value={'status':False, 'id': client_data.id})
+                await self.client_repository.update_single_field(str(client_data.id),0, "wg_server", endpoint)
+                await self.client_repository.update_single_field(str(client_data.id),0, "wg_id", str(wg_user_id))
+                self.kafka_producer.send(f'{source}-connect-responses', value={'status':False, 'id': client_data.id})
         except Exception as e:
             self.logger.error(f"Ошибка при создании клиента: {e}")
-            self.kafka_producer.send('connect-responses', value={'correlation_id': correlation_id, 'connect_response': {"status": False}})
+            self.kafka_producer.send(f'{source}-connect-responses', value={'status':False, 'id': client_data.id})
 
     def get_qr_code(self, configuration):
         """Генерация QR-кода для конфигурации."""
@@ -358,15 +347,15 @@ class WireguardService:
                 "status": False,
             }})
         
-    async def _process_message(self, topic: str, user_data: dict, correlation_id: str):
+    async def _process_message(self, topic: str, user_data: dict, source:str):
         if topic == 'config-requests':
-            await self.get_config_handler(user_data, correlation_id)
+            await self.get_config_handler(user_data, source)
         elif topic == 'connect-requests':
-            await self.create_client_handler(user_data, correlation_id)
+            await self.create_client_handler(user_data, source)
         elif topic == 'info-requests':
-            await self.get_user_handler(user_data, correlation_id)
+            await self.get_user_handler(user_data, source)
         elif topic == 'qr-requests':
-            await self.get_qr_handler(user_data, correlation_id)
+            await self.get_qr_handler(user_data, source)
 
     def _start_kafka_consumer(self):
         loop = asyncio.get_event_loop()
@@ -380,10 +369,10 @@ class WireguardService:
             for msg in consumer:
                 try:
                     data = msg.value
-                    correlation_id = data['correlation_id']
                     user_data = data['user_data']
+                    source = data['source']
                     task = asyncio.run_coroutine_threadsafe(
-                        self._process_message(msg.topic, user_data, correlation_id),
+                        self._process_message(msg.topic, user_data, source),
                         loop
                     )
                     task.result() 
