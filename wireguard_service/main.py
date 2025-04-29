@@ -54,7 +54,7 @@ class WireguardService:
                         if str(db_client.wg_id) == str(client['id']):
                             transfer_tx = client.get("transferTx", 0)
                             gigabytes_value = self.bytes_to_gb(transfer_tx) if transfer_tx else 0
-                            await self.client_repository.update_single_field(str(db_client.id), 0, "gigabytes", gigabytes_value)
+                            await self.client_repository.update_single_field(str(db_client.id), 0, "used_gigabytes", gigabytes_value)
                             await self.client_repository.update_single_field(str(db_client.id), 0, "latest_handshake", client['latestHandshakeAt'])
                             break
                     except Exception as e:
