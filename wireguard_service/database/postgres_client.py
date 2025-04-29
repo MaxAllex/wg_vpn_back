@@ -112,7 +112,7 @@ class ClientRepository:
                 max_gigabytes=client['max_gigabytes'],
                 last_used_gigabytes=client['last_used_gigabytes']
             ))
-            return [clients_list]  # Преобразуем в объекты Client
+            return clients_list  # Преобразуем в объекты Client
         except Exception as e:
             if retry_count < self.max_retries:
                 return await self.get_all_clients(retry_count + 1)
