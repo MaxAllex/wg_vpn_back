@@ -97,7 +97,8 @@ class WireguardService:
 
         scheduler.add_job(
             self.scheduler_upload_traffic_for_users,
-            CronTrigger(day=1, hour=9, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
+            CronTrigger(minute="*/1", timezone=pytz.timezone("Europe/Moscow")),
+            #CronTrigger(day=1, hour=9, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
         )
 
         scheduler.add_job(
