@@ -92,7 +92,27 @@ class ClientRepository:
         try:
             conn = await self.connect()
             clients = await conn.fetch("SELECT * FROM users")
-            return [Client(**dict(client)) for client in clients]  # Преобразуем в объекты Client
+            clients_list = []
+            for client in clients:
+                clients_list.append(Client(
+                id=str(client['id']),
+                telegram_id=client['telegram_id'],
+                wg_id=str(client['wg_id']),
+                wg_server=str(client['wg_server']),
+                has_premium_status=client['has_premium_status'],
+                premium_status_is_valid_until=client['premium_status_is_valid_until'],
+                config_file=client['config_file'],
+                qr_code=client['qr_code'],
+                enabled_status=client['enabled_status'],
+                created_at=client['created_at'],
+                need_to_disable=client['need_to_disable'],
+                jwt_version=client['jwt_version'],
+
+                used_gigabytes=client['used_gigabytes'],
+                max_gigabytes=client['max_gigabytes'],
+                last_used_gigabytes=client['last_used_gigabytes']
+            ))
+            return [clients_list]  # Преобразуем в объекты Client
         except Exception as e:
             if retry_count < self.max_retries:
                 return await self.get_all_clients(retry_count + 1)
