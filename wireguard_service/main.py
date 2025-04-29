@@ -67,7 +67,7 @@ class WireguardService:
         db_clients = await self.client_repository.get_all_clients()
         for client in db_clients:
             max_gigabytes = 10
-            if client.last_used_gigabytes+client.used_gigabytes < client.max_gigabytes and client.max_gigabytes != 10:
+            if client.last_used_gigabytes+client.used_gigabytes < client.max_gigabytes and client.max_gigabytes > 10:
                 max_gigabytes = 10+client.max_gigabytes-client.last_used_gigabytes-client.used_gigabytes
             await self.client_repository.update_user_data(str(client.id), 0, last_used_gigabytes=0, used_gigabytes=0,max_gigabytes=max_gigabytes, enabled_status=True)
         self.kafka_producer.send("upload-traffic", value={"telegram_id": 0})
