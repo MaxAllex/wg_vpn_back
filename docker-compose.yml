@@ -1,0 +1,25 @@
+version: '3.8'
+services:
+  wireguard_service:
+    build: .
+    restart: always
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS:""
+      ENDPOINTS:""
+      PASSWORD:""
+      POSTGRES_USER:""
+      POSTGRES_PASSWORD:""
+      POSTGRES_PORT:""
+      POSTGRES_DB_NAME:""
+      POSTGRES_HOST_NAME:""
+      GRPC_CLIENT_PORT:""
+      ADMIN_CHAT_ID:""
+      SECRET_KEY:""
+      ALGORITHM:""
+      ACCESS_TOKEN_EXPIRE_MINUTES:""
+      REFRESH_TOKEN_EXPIRE_MINUTES:""
+      TELEGRAM_TOKEN:""
+      SECRETE_KEY:""
+      SHOP_ID:""
+      PROVIDER_TOKEN:""
+
