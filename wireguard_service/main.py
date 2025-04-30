@@ -299,7 +299,7 @@ class WireguardService:
             return False
 
 
-    def bytes_to_db(self, bytes_value):
+    def bytes_to_gb(self, bytes_value):
         gb_value = bytes_value / 1_000_000_000  # 1 ГБ = 10^9 байт
         return round(gb_value, 2)
     
