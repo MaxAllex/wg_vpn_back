@@ -55,7 +55,7 @@ class WireguardService:
                             transfer_tx = client.get("transferTx", 0)
                             gigabytes_value = self.bytes_to_gb(transfer_tx) if transfer_tx else 0
                             await self.client_repository.update_single_field(str(db_client.id), 0, "used_gigabytes", gigabytes_value)
-                            await self.client_repository.update_single_field(str(db_client.id), 0, "latest_handshake", client['latestHandshakeAt'])
+                            await self.client_repository.update_single_field(str(db_client.id), 0, "latest_handshake", datetime.datetime.strptime(client['latestHandshakeAt'], '%Y-%m-%dT%H:%M:%S.%fZ'))
                             break
                     except Exception as e:
                         self.logger.error(f"error iterating in db: {e}")
