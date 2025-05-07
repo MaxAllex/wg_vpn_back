@@ -111,7 +111,7 @@ class WireguardService:
         scheduler.start()
         self._start_kafka_consumer()
         try:
-            asyncio.get_event_loop().run_forever()
+            loop.run_forever()
         except KeyboardInterrupt:
             pass
         finally:
