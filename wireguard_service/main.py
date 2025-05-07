@@ -88,6 +88,8 @@ class WireguardService:
 
 
     def run(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         scheduler = AsyncIOScheduler()
 
         scheduler.add_job(
