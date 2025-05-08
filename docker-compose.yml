@@ -1,7 +1,0 @@
-version: '3.8'
-services:
-  wireguard_service:
-    build: .
-    restart: always
-    network_mode: host
-

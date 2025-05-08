@@ -5,15 +5,12 @@ from contextlib import asynccontextmanager
 from typing import List
 import json
 import aiohttp
-from aiohttp import ClientSession, ClientResponse, ClientError
+from aiohttp import ClientSession, ClientError
 from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
 from kafka import KafkaProducer, KafkaConsumer
 import asyncio
 import base64 as b64
-import qrcode
-from qrcode.main import QRCode
-from io import BytesIO
 import datetime
 import pytz
 import database.postgres_client
@@ -304,7 +301,6 @@ class WireguardService:
     def bytes_to_gb(self, bytes_value):
         gb_value = bytes_value / 1_000_000_000  # 1 ГБ = 10^9 байт
         return round(gb_value, 2)
-    
 
         
     async def _process_message(self, topic: str, user_data: dict, source:str):
@@ -363,8 +359,6 @@ def main():
         client_repository=client_repository
     )
     wireguard_service.run()
-    
-    
 
 
 if __name__ == "__main__":
