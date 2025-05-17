@@ -11,7 +11,6 @@ class Client(BaseModel):
     has_premium_status: Optional[bool] = False
     premium_status_is_valid_until: Optional[datetime] = None
     config_file: Optional[str] = None
-    qr_code: Optional[str] = None
     enabled_status: Optional[bool] = False
     created_at: Optional[datetime] = None
     need_to_disable: Optional[bool] = False

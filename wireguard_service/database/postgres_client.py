@@ -48,27 +48,8 @@ class ClientRepository:
     async def save_client(self, client_data: dict, retry_count: int = 0) -> str:
         try:
             conn = await self.connect()
-            """
-                id: UUID
-    telegram_id: Optional[int]
-    wg_id: Optional[str]
-    has_premium_status: Optional[bool]
-    premium_status_is_valid_until: Optional[datetime]
-    config_file: Optional[str]
-    qr_code: Optional[str]
-    enabled_status: Optional[bool]
-    created_at: Optional[datetime]
-    need_to_disable: Optional[bool]
-    wg_server: Optional[str]
-    last_used_gigabytes: Optional[float]
-    used_gigabytes: Optional[float]
-    max_gigabytes: Optional[float]
-    jwt_version: Optional[int]
-    latest_handshake: Optional[datetime]
-    app_token: Optional[str]
-            """
             query = """
-                    INSERT INTO users (telegram_id, wg_id, has_premium_status, premium_status_is_valid_until, config_file, qr_code, enabled_status, created_at, need_to_disable, wg_server, last_used_gigabytes, used_gigabytes, max_gigabytes, jwt_version, latest_handshake, app_token) VALUES ($1,'', false,now(), '', '', false, now(), false, '', 0, 0, 0, 0, now(), '');
+                    INSERT INTO users (telegram_id, wg_id, has_premium_status, premium_status_is_valid_until, config_file, enabled_status, created_at, need_to_disable, wg_server, last_used_gigabytes, used_gigabytes, max_gigabytes, jwt_version, latest_handshake, app_token) VALUES ($1,'', false,now(), '', false, now(), false, '', 0, 0, 10, 0, now(), '');
                     """
             await conn.execute(
                                 query,
@@ -102,7 +83,6 @@ class ClientRepository:
                 has_premium_status=client['has_premium_status'],
                 premium_status_is_valid_until=client['premium_status_is_valid_until'],
                 config_file=client['config_file'],
-                qr_code=client['qr_code'],
                 enabled_status=client['enabled_status'],
                 created_at=client['created_at'],
                 need_to_disable=client['need_to_disable'],
@@ -137,7 +117,6 @@ class ClientRepository:
                 has_premium_status=client_data['has_premium_status'],
                 premium_status_is_valid_until=client_data['premium_status_is_valid_until'],
                 config_file=client_data['config_file'],
-                qr_code=client_data['qr_code'],
                 enabled_status=client_data['enabled_status'],
                 created_at=client_data['created_at'],
                 need_to_disable=client_data['need_to_disable'],
@@ -170,7 +149,6 @@ class ClientRepository:
                 has_premium_status=client_data['has_premium_status'],
                 premium_status_is_valid_until=client_data['premium_status_is_valid_until'],
                 config_file=client_data['config_file'],
-                qr_code=client_data['qr_code'],
                 enabled_status=client_data['enabled_status'],
                 created_at=client_data['created_at'],
                 need_to_disable=client_data['need_to_disable'],
@@ -202,7 +180,6 @@ class ClientRepository:
                 has_premium_status=client_data['has_premium_status'],
                 premium_status_is_valid_until=client_data['premium_status_is_valid_until'],
                 config_file=client_data['config_file'],
-                qr_code=client_data['qr_code'],
                 enabled_status=client_data['enabled_status'],
                 created_at=client_data['created_at'],
                 need_to_disable=client_data['need_to_disable'],

@@ -255,12 +255,12 @@ class WireguardService:
                 try:
                     config_bytes = b64.b64encode(config_bytes)
                     await self.client_repository.update_single_field(str(client_data.id),0, "config_file", config_bytes.decode('utf-8'))
-                    print("gere1")
                     self.kafka_producer.send(f'{source}-config-responses', value={'status':True, 'id': client_data.id})
                 except Exception as e:
                     self.logger.error(f"Ошибка при кодировании конфигурации: {e}")
                     self.kafka_producer.send(f'{source}-config-responses', value={'status':False, 'id': client_data.id})
                     return
+                
         except Exception as e:
             self.logger.error(f"Ошибка при получении конфигурации: {e}")
             self.kafka_producer.send(f'{source}-config-responses', value={'status':False, 'id': client_data.id})
@@ -285,7 +285,6 @@ class WireguardService:
                 await self.client_repository.update_single_field(str(client_data.id),0, "wg_server", endpoint)
                 await self.client_repository.update_single_field(str(client_data.id),0, "wg_id", str(wg_user_id))
                 await self.client_repository.update_single_field(str(client_data.id),0,"enabled_status", True)
-                print("gere")
                 self.kafka_producer.send(f'{source}-connect-responses', value={'status':True, 'id': client_data.id})
         except Exception as e:
             self.logger.error(f"Ошибка при создании клиента: {e}")
