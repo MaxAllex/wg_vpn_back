@@ -7,7 +7,6 @@ import json
 import aiohttp
 from aiohttp import ClientSession, ClientError
 from apscheduler.triggers.cron import CronTrigger
-from dotenv import load_dotenv
 from kafka import KafkaProducer, KafkaConsumer
 import asyncio
 import base64 as b64
@@ -57,8 +56,6 @@ class WireguardService:
                     except Exception as e:
                         self.logger.error(f"error iterating in db: {e}")
         await self.second_step_check_traffic()
-                    
-
 
     async def scheduler_upload_traffic_for_users(self):
         db_clients = await self.client_repository.get_all_clients()
@@ -238,7 +235,7 @@ class WireguardService:
                     return
                 temp_wg = await self.create_client_handler(user_data, source, True)
                 async with self.create_session(endpoint) as session:
-                    self.delete_client(session, start_endpoint, client_data.wg_id)
+                   await self.delete_client(session, start_endpoint, client_data.wg_id)
                 client_data.wg_server = endpoint
                 client_data.wg_id = temp_wg
                 await self.client_repository.update_single_field(str(client_data.id),0, "wg_server", endpoint)
@@ -335,8 +332,7 @@ class WireguardService:
         threading.Thread(target=consume_responses, daemon=True).start()
 
 
-def main():    
-    load_dotenv()
+def main():
     PASSWORD_DATA = {'password': os.getenv('PASSWORD'), 'remember': 'true'}
     kafka_bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
     if kafka_bootstrap_servers is None:
@@ -359,7 +355,6 @@ def main():
         client_repository=client_repository
     )
     wireguard_service.run()
-
 
 if __name__ == "__main__":
     main()
