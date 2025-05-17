@@ -244,8 +244,7 @@ class WireguardService:
                     self.delete_client(session, start_endpoint, client_data.wg_id)
                 client_data.wg_server = endpoint
                 client_data.wg_id = temp_wg
-                await self.client_repository.update_single_field(str(client_data.id),0, "wg_server", endpoint)
-                await self.client_repository.update_single_field(str(client_data.id),0, "wg_id", temp_wg)
+                await self.client_repository.update_user_data(user_data['id'], 0, wg_id=temp_wg, wg_server=endpoint, last_used_gigabytes=client_data.last_used_gigabytes+client_data.used_gigabytes, used_gigabytes=0)
 
             async with self.create_session(endpoint) as session:
                 config_bytes = await self.get_config(session, endpoint, client_data.wg_id)
@@ -278,7 +277,7 @@ class WireguardService:
                 clients_with_name = [d for d in clients if d['name'] == str(user_data['id'])]
                 wg_user_id = clients_with_name[0]["id"]
                 if is_changed:
-                    await self.client_repository.update_user_data(user_data['id'], 0, wg_id=result["id"], wg_server=endpoint, last_used_gigabytes=user_data['used_gigabytes'], used_gigabytes=0)
+                    await self.client_repository.update_user_data(user_data['id'], 0, wg_id=result["id"], wg_server=endpoint, last_used_gigabytes=client_data.last_used_gigabytes+client_data.used_gigabytes, used_gigabytes=0)
                     return result['id']
                 if 'error' in result.keys() and result['error'] != '':
                     self.kafka_producer.send(f'{source}-connect-responses', value={'status':False, 'id': client_data.id})
