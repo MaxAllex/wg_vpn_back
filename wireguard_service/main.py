@@ -253,7 +253,7 @@ class WireguardService:
                     return
                 temp_wg = await self.create_client_handler(user_data, source, True)
                 async with self.create_session(endpoint) as session:
-                    self.delete_client(session, start_endpoint, client_data.wg_id)
+                    await self.delete_client(session, start_endpoint, client_data.wg_id)
                 client_data.wg_server = endpoint
                 client_data.wg_id = temp_wg
                 await self.client_repository.update_user_data(user_data['id'], 0, wg_id=temp_wg, wg_server=endpoint, last_used_gigabytes=client_data.last_used_gigabytes+client_data.used_gigabytes, used_gigabytes=0)
