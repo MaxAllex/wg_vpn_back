@@ -36,7 +36,7 @@ class WireguardService:
             try:
                 if client.last_used_gigabytes + client.used_gigabytes > client.max_gigabytes and not client.has_premium_status and client.config_file is not None and client.config_file != "":
                     self.kafka_producer.send("disable-client", value={"telegram_id": client.telegram_id, "wg_id": client.wg_id})
-                    await self.client_repository.update_user_data(client.id, 0, enabled_status=False)
+                    await self.client_repository.update_user_data(client.id, 0, enabled_status=False, last_used_gigabytes=client.last_used_gigabytes+client.used_gigabytes, used_gigabytes=0)
                     async with self.create_session(client.wg_server) as session:
                         await self.action_with_client(session, client.wg_server, client.wg_id, 'disable')
                 elif not client.enabled_status and client.config_file is not None and client.config_file != "":
@@ -91,8 +91,8 @@ class WireguardService:
                 reminder_date = client.premium_status_is_valid_until.date() - datetime.timedelta(days=1)
                 telegram_id = client.telegram_id
                 if client.premium_status_is_valid_until.date() <= today:
-                    await self.client_repository.update_single_field(str(client.id), "has_premium_status", False)
-                    await self.client_repository.update_single_field(str(client.id), "premium_status_is_valid_until", None)
+                    await self.client_repository.update_single_field(str(client.id), 0, "has_premium_status", False)
+                    await self.client_repository.update_single_field(str(client.id), 0, "premium_status_is_valid_until", None)
                     self.kafka_producer.send("disable-premium", value={"telegram_id": telegram_id})
                 elif client.premium_status_is_valid_until.date() == reminder_date:
                     self.kafka_producer.send("premium-reminder", value={"telegram_id": telegram_id})
@@ -110,13 +110,14 @@ class WireguardService:
 
         scheduler.add_job(
             self.scheduler_upload_traffic_for_users,
-            #CronTrigger(minute="*/1", timezone=pytz.timezone("Europe/Moscow")),
-            CronTrigger(day=1, hour=9, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
+            CronTrigger(minute="*/10", timezone=pytz.timezone("Europe/Moscow")),
+            #CronTrigger(day=1, hour=9, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
         )
 
         scheduler.add_job(
             self.scheduler_check_premium_status,
-            CronTrigger(day="*/1", hour=18, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
+            CronTrigger(minute="*/3", timezone=pytz.timezone("Europe/Moscow")),
+            #CronTrigger(day="*/1", hour=18, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
         )
 
         scheduler.start()
