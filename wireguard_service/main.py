@@ -55,7 +55,6 @@ class WireguardService:
             if client.wg_server is not None and client.wg_server != "" and client.wg_server not in wg_clients.keys():
                 async with self.create_session(client.wg_server) as session:
                     wg_clients[client.wg_server] = await self.get_clients(session, client.wg_server)
-        
         for clients in wg_clients.values():
             for client in clients:
                 for db_client in db_clients:
@@ -209,7 +208,7 @@ class WireguardService:
                 
                 result["clients"] = await self.get_clients_count(session, endpoint)
 
-                result["score"] = result["latency"] * 0.7 + result["clients"] * 0.3
+                result["score"] = result["latency"] * 0.1 + result["clients"] * 0.9
                 result["alive"] = True
             return result
         except Exception as e:
