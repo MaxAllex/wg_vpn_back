@@ -88,13 +88,13 @@ class WireguardService:
         for client in db_clients:
             if client.has_premium_status:
                 today = datetime.date.today()
-                reminder_date = client.premium_status_is_valid_until.date() - datetime.timedelta(days=1)
+                #reminder_date = client.premium_status_is_valid_until.date() - datetime.timedelta(days=1)
                 telegram_id = client.telegram_id
-                if client.premium_status_is_valid_until.date() <= today:
+                if client.premium_status_is_valid_until.date() < today:
                     await self.client_repository.update_single_field(str(client.id), 0, "has_premium_status", False)
                     await self.client_repository.update_single_field(str(client.id), 0, "premium_status_is_valid_until", None)
                     self.kafka_producer.send("disable-premium", value={"telegram_id": telegram_id})
-                elif client.premium_status_is_valid_until.date() == reminder_date:
+                elif client.premium_status_is_valid_until.date() == today:
                     self.kafka_producer.send("premium-reminder", value={"telegram_id": telegram_id})
 
 
