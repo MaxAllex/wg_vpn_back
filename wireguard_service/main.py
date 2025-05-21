@@ -12,6 +12,7 @@ from kafka import KafkaProducer, KafkaConsumer
 import asyncio
 import base64 as b64
 import qrcode
+from math import isclose
 from qrcode.main import QRCode
 from io import BytesIO
 import datetime
@@ -34,7 +35,8 @@ class WireguardService:
         db_clients = await self.client_repository.get_all_clients()
         for client in db_clients:
             try:
-                if client.last_used_gigabytes + client.used_gigabytes > client.max_gigabytes and not client.has_premium_status and client.config_file is not None and client.config_file != "":
+                #isclose чтобы исключить сильный перебор
+                if (client.last_used_gigabytes + client.used_gigabytes > client.max_gigabytes or isclose(client.last_used_gigabytes + client.used_gigabytes, client.max_gigabytes)) and not client.has_premium_status and client.config_file is not None and client.config_file != "":
                     self.kafka_producer.send("disable-client", value={"telegram_id": client.telegram_id, "wg_id": client.wg_id})
                     await self.client_repository.update_user_data(client.id, 0, enabled_status=False, last_used_gigabytes=client.last_used_gigabytes+client.used_gigabytes, used_gigabytes=0)
                     async with self.create_session(client.wg_server) as session:
