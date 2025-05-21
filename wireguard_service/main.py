@@ -85,7 +85,7 @@ class WireguardService:
             async with self.create_session(client.wg_server) as session:
                 await self.action_with_client(session, client.wg_server, client.wg_id, 'enable')
             await self.client_repository.update_user_data(str(client.id), 0, last_used_gigabytes=0, used_gigabytes=0,max_gigabytes=max_gigabytes, enabled_status=True)
-        self.kafka_producer.send("upload-traffic", value={"telegram_id": client.telegram_id})
+        self.kafka_producer.send("upload-traffic", value={"telegram_id": 0})
 
     async def scheduler_check_premium_status(self):
         db_clients = await self.client_repository.get_all_clients()
