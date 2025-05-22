@@ -75,6 +75,7 @@ class WireguardService:
 
     async def scheduler_upload_traffic_for_users(self):
         db_clients = await self.client_repository.get_all_clients()
+        print("scheduler_upload_traffic_for_users")
         for client in db_clients:
             max_gigabytes = 10
             if client.last_used_gigabytes+client.used_gigabytes < client.max_gigabytes and client.max_gigabytes > 10:
@@ -85,6 +86,7 @@ class WireguardService:
             async with self.create_session(client.wg_server) as session:
                 await self.action_with_client(session, client.wg_server, client.wg_id, 'enable')
             await self.client_repository.update_user_data(str(client.id), 0, last_used_gigabytes=0, used_gigabytes=0,max_gigabytes=max_gigabytes, enabled_status=True)
+        print("end scheduler_upload_traffic_for_users")
         self.kafka_producer.send("upload-traffic", value={"telegram_id": 0})
 
     async def scheduler_check_premium_status(self):
@@ -114,7 +116,7 @@ class WireguardService:
 
         scheduler.add_job(
             self.scheduler_upload_traffic_for_users,
-            CronTrigger(minute="*/10", timezone=pytz.timezone("Europe/Moscow")),
+            CronTrigger(minute="*/2", timezone=pytz.timezone("Europe/Moscow")),
             #CronTrigger(day=1, hour=9, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
         )
 
