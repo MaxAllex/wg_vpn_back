@@ -203,7 +203,6 @@ class WireguardService:
             "clients": float('inf'),
             "score": 0
         }
-
         try:
             start = datetime.datetime.now()
             async with self.create_session(endpoint) as session:
@@ -217,6 +216,7 @@ class WireguardService:
 
                 result["score"] = result["latency"] * 0.1 + result["clients"] * 0.9
                 result["alive"] = True
+                print(result)
             return result
         except Exception as e:
             print(e)
