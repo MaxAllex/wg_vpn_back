@@ -11,3 +11,10 @@ dotenv~=0.9.9
 python-dotenv~=1.0.1
 ping3~=4.0.8
 requests~=2.32.3
+APScheduler==3.11.0
+kafka-python==2.2.4
+tzlocal==5.3.1
+qrcode==8.2
+pytz==2025.2
+async-timeout==5.0.1
+asyncpg==0.30.0
