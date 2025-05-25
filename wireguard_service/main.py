@@ -113,17 +113,19 @@ class WireguardService:
             self.scheduler_check_traffic,
             CronTrigger(minute="*/1", timezone=pytz.timezone("Europe/Moscow")),
         )
+        print("CronTrigger(day=*/1, timezone=pytz.timezone(Europe/Moscow))")
 
         scheduler.add_job(
             self.scheduler_upload_traffic_for_users,
             CronTrigger(day=1, hour=9, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
         )
+        print("CronTrigger(day=1, hour=9, minute=0, second=0, timezone=pytz.timezone(Europe/Moscow))")
 
         scheduler.add_job(
             self.scheduler_check_premium_status,
             CronTrigger(day="*/1", hour=18, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
         )
-
+        print("CronTrigger(day=*/1, hour=18, minute=0, second=0, timezone=pytz.timezone(Europe/Moscow))")
         scheduler.start()
         self._start_kafka_consumer()
         try:
