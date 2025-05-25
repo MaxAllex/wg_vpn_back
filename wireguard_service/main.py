@@ -94,7 +94,6 @@ class WireguardService:
         for client in db_clients:
             if client.has_premium_status:
                 today = datetime.date.today()
-                #reminder_date = client.premium_status_is_valid_until.date() - datetime.timedelta(days=1)
                 telegram_id = client.telegram_id
                 if client.premium_status_is_valid_until.date() < today:
                     await self.client_repository.update_single_field(str(client.id), 0, "has_premium_status", False)
@@ -116,14 +115,12 @@ class WireguardService:
 
         scheduler.add_job(
             self.scheduler_upload_traffic_for_users,
-            CronTrigger(minute="*/15", timezone=pytz.timezone("Europe/Moscow")),
-            #CronTrigger(day=1, hour=9, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
+            CronTrigger(day=1, hour=9, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
         )
 
         scheduler.add_job(
             self.scheduler_check_premium_status,
-            CronTrigger(minute="*/3", timezone=pytz.timezone("Europe/Moscow")),
-            #CronTrigger(day="*/1", hour=18, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
+            CronTrigger(day="*/1", hour=18, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
         )
 
         scheduler.start()
