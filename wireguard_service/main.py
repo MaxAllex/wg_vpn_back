@@ -36,7 +36,7 @@ class WireguardService:
         for client in db_clients:
             try:
                 #isclose чтобы исключить сильный перебор
-                if (client.last_used_gigabytes + client.used_gigabytes > client.max_gigabytes or isclose(client.last_used_gigabytes + client.used_gigabytes, client.max_gigabytes)) and not client.has_premium_status and client.config_file is not None and client.config_file != "":
+                if (client.last_used_gigabytes + client.used_gigabytes > client.max_gigabytes or isclose(client.last_used_gigabytes + client.used_gigabytes, client.max_gigabytes)) and not client.has_premium_status and client.config_file is not None and client.config_file != "" and client.enabled_status:
                     self.kafka_producer.send("disable-client", value={"telegram_id": client.telegram_id, "wg_id": client.wg_id})
                     await self.client_repository.update_user_data(client.id, 0, enabled_status=False, last_used_gigabytes=client.last_used_gigabytes+client.used_gigabytes, used_gigabytes=0)
                     async with self.create_session(client.wg_server) as session:
@@ -113,19 +113,16 @@ class WireguardService:
             self.scheduler_check_traffic,
             CronTrigger(minute="*/1", timezone=pytz.timezone("Europe/Moscow")),
         )
-        print("CronTrigger(day=*/1, timezone=pytz.timezone(Europe/Moscow))")
 
         scheduler.add_job(
             self.scheduler_upload_traffic_for_users,
             CronTrigger(day=1, hour=9, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
         )
-        print("CronTrigger(day=1, hour=9, minute=0, second=0, timezone=pytz.timezone(Europe/Moscow))")
 
         scheduler.add_job(
             self.scheduler_check_premium_status,
             CronTrigger(day="*/1", hour=18, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
         )
-        print("CronTrigger(day=*/1, hour=18, minute=0, second=0, timezone=pytz.timezone(Europe/Moscow))")
         scheduler.start()
         self._start_kafka_consumer()
         try:
