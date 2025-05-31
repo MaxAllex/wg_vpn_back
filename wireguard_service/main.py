@@ -41,7 +41,7 @@ class WireguardService:
                     await self.client_repository.update_user_data(client.id, 0, enabled_status=False, last_used_gigabytes=client.last_used_gigabytes+client.used_gigabytes, used_gigabytes=0)
                     async with self.create_session(client.wg_server) as session:
                         await self.action_with_client(session, client.wg_server, client.wg_id, 'disable')
-                elif not client.enabled_status and client.config_file is not None and client.config_file != "":
+                elif not client.enabled_status and client.config_file is not None and client.config_file != "" and (client.has_premium_status or (client.last_used_gigabytes +client.used_gigabytes < client and not isclose(client.last_used_gigabytes +client.used_gigabytes, client.max_gigabytes))):
                     self.kafka_producer.send("enable-client", value={"telegram_id": client.telegram_id, "wg_id": client.wg_id})
                     await self.client_repository.update_user_data(client.id, 0, enabled_status=True)
                     async with self.create_session(client.wg_server) as session:
