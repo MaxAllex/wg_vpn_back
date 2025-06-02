@@ -36,16 +36,19 @@ class WireguardService:
         for client in db_clients:
             try:
                 #isclose чтобы исключить сильный перебор
-                if (client.last_used_gigabytes + client.used_gigabytes > client.max_gigabytes or isclose(client.last_used_gigabytes + client.used_gigabytes, client.max_gigabytes)) and not client.has_premium_status and client.config_file is not None and client.config_file != "":
-                    self.kafka_producer.send("disable-client", value={"telegram_id": client.telegram_id, "wg_id": client.wg_id})
-                    await self.client_repository.update_user_data(client.id, 0, enabled_status=False, last_used_gigabytes=client.last_used_gigabytes+client.used_gigabytes, used_gigabytes=0)
+                if (client.last_used_gigabytes + client.used_gigabytes > client.max_gigabytes or isclose(client.last_used_gigabytes + client.used_gigabytes, client.max_gigabytes)) and not client.has_premium_status and client.config_file is not None and client.config_file != "" and client.enabled_status:
                     async with self.create_session(client.wg_server) as session:
                         await self.action_with_client(session, client.wg_server, client.wg_id, 'disable')
-                elif not client.enabled_status and client.config_file is not None and client.config_file != "":
-                    self.kafka_producer.send("enable-client", value={"telegram_id": client.telegram_id, "wg_id": client.wg_id})
-                    await self.client_repository.update_user_data(client.id, 0, enabled_status=True)
+                    await self.client_repository.update_user_data(client.id, 0, enabled_status=False, last_used_gigabytes=client.last_used_gigabytes+client.used_gigabytes, used_gigabytes=0)
+                    
+                    self.kafka_producer.send("disable-client", value={"telegram_id": client.telegram_id, "wg_id": client.wg_id})
+                    
+                elif not client.enabled_status and client.config_file is not None and client.config_file != "" and (client.has_premium_status or (client.last_used_gigabytes +client.used_gigabytes < client and not isclose(client.last_used_gigabytes +client.used_gigabytes, client.max_gigabytes))):
                     async with self.create_session(client.wg_server) as session:
                         await self.action_with_client(session, client.wg_server, client.wg_id, 'enable')
+                    await self.client_repository.update_user_data(client.id, 0, enabled_status=True)
+                    self.kafka_producer.send("enable-client", value={"telegram_id": client.telegram_id, "wg_id": client.wg_id})
+                    
             except Exception as e:
                 self.logger.error(f"error iterating in db: {e}")
                 continue
@@ -122,7 +125,6 @@ class WireguardService:
             self.scheduler_check_premium_status,
             CronTrigger(day="*/1", hour=18, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
         )
-
         scheduler.start()
         self._start_kafka_consumer()
         try:
