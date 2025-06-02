@@ -37,6 +37,10 @@ class WireguardService:
             try:
                 #isclose чтобы исключить сильный перебор
                 if (client.last_used_gigabytes + client.used_gigabytes > client.max_gigabytes or isclose(client.last_used_gigabytes + client.used_gigabytes, client.max_gigabytes)) and not client.has_premium_status and client.config_file is not None and client.config_file != "" and client.enabled_status:
+                    if client.yookassa_autopayment_active:
+                        self.kafka_producer.send("repay-request", value={"user_data": {"id":client.id},
+                            "source": "telegram" if client.telegram_id is not None else "other"
+                        })
                     async with self.create_session(client.wg_server) as session:
                         await self.action_with_client(session, client.wg_server, client.wg_id, 'disable')
                     await self.client_repository.update_user_data(client.id, 0, enabled_status=False, last_used_gigabytes=client.last_used_gigabytes+client.used_gigabytes, used_gigabytes=0)

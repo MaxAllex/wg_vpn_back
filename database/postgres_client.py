@@ -48,8 +48,9 @@ class ClientRepository:
     async def save_client(self, client_data: dict, retry_count: int = 0) -> str:
         try:
             conn = await self.connect()
+            
             query = """
-                    INSERT INTO users (telegram_id, wg_id, has_premium_status, premium_status_is_valid_until, config_file, enabled_status, created_at, need_to_disable, wg_server, last_used_gigabytes, used_gigabytes, max_gigabytes, jwt_version, latest_handshake, app_token) VALUES ($1,'', false,now(), '', false, now(), false, '', 0, 0, 10, 0, now(), '');
+                    INSERT INTO users (telegram_id, wg_id, has_premium_status, premium_status_is_valid_until, config_file, enabled_status, created_at, need_to_disable, wg_server, last_used_gigabytes, used_gigabytes, max_gigabytes, jwt_version, latest_handshake, app_token, yookassa_payment_method_id, yookassa_autopayment_active, yookassa_last_payment_type, yookassa_subscription_type) VALUES ($1,'', false,now() - interval '1 days', '', false, now(), false, '', 0, 0, 10.0, 0, now(), '', '', false, '', '', '', '');
                     """
             await conn.execute(
                                 query,
@@ -87,10 +88,15 @@ class ClientRepository:
                 created_at=client['created_at'],
                 need_to_disable=client['need_to_disable'],
                 jwt_version=client['jwt_version'],
-
+                latest_handshake=client['latest_handshake'],
                 used_gigabytes=client['used_gigabytes'],
                 max_gigabytes=client['max_gigabytes'],
-                last_used_gigabytes=client['last_used_gigabytes']
+                last_used_gigabytes=client['last_used_gigabytes'],
+                app_token=client['app_token'],
+                yookassa_payment_method_id=client['yookassa_payment_method_id'],
+                yookassa_autopayment_active=client['yookassa_autopayment_active'],
+                yookassa_last_payment_type=client['yookassa_last_payment_type'],
+                yookassa_subscription_type=client['yookassa_subscription_type']
             ))
             return clients_list  # Преобразуем в объекты Client
         except Exception as e:
@@ -121,10 +127,15 @@ class ClientRepository:
                 created_at=client_data['created_at'],
                 need_to_disable=client_data['need_to_disable'],
                 jwt_version=client_data['jwt_version'],
-
+                latest_handshake=client_data['latest_handshake'],
                 used_gigabytes=client_data['used_gigabytes'],
                 max_gigabytes=client_data['max_gigabytes'],
-                last_used_gigabytes=client_data['last_used_gigabytes']
+                last_used_gigabytes=client_data['last_used_gigabytes'],
+                app_token=client_data['app_token'],
+                yookassa_payment_method_id=client_data['yookassa_payment_method_id'],
+                yookassa_autopayment_active=client_data['yookassa_autopayment_active'],
+                yookassa_last_payment_type=client_data['yookassa_last_payment_type'],
+                yookassa_subscription_type=client_data['yookassa_subscription_type']
             )
         except Exception as e:
             if retry_count < self.max_retries:
@@ -154,8 +165,14 @@ class ClientRepository:
                 need_to_disable=client_data['need_to_disable'],
                 jwt_version=client_data['jwt_version'],
                 used_gigabytes=client_data['used_gigabytes'],
+                latest_handshake=client_data['latest_handshake'],
                 max_gigabytes=client_data['max_gigabytes'],
-                last_used_gigabytes=client_data['last_used_gigabytes']
+                last_used_gigabytes=client_data['last_used_gigabytes'],
+                app_token=client_data['app_token'],
+                yookassa_payment_method_id=client_data['yookassa_payment_method_id'],
+                yookassa_autopayment_active=client_data['yookassa_autopayment_active'],
+                yookassa_last_payment_type=client_data['yookassa_last_payment_type'],
+                yookassa_subscription_type=client_data['yookassa_subscription_type']
             )
         except Exception as e:
             if retry_count < self.max_retries:
@@ -235,104 +252,3 @@ class ClientRepository:
             await conn.close()
             
             
-
-
-#async def get_db_connection():
-#    """Устанавливаем соединение с PostgreSQL"""
-#    return await asyncpg.connect(f'postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST_NAME}:{int(POSTGRES_PORT)}/{POSTGRES_DB_NAME}')
-#
-#
-#async def save_client(client_data: dict):
-#    conn = await get_db_connection()
-#
-#    try:
-#        query = """
-#        INSERT INTO users (id, telegram_id, wg_id, has_premium_status, premium_status_is_valid_until, 
-#                             config_file, qr_code, enabled_status, created_at, need_to_disable)
-#        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
-#        """
-#
-#        # Извлекаем данные из client_data
-#        await conn.execute(query,
-#                           client_data["id"],
-#                           client_data["telegram_id"],
-#                           client_data["wg_id"],
-#                           client_data["has_premium_status"],
-#                           client_data["premium_status_is_valid_until"],
-#                           client_data["config_file"],
-#                           client_data["qr_code"],
-#                           client_data["enabled_status"],
-#                           client_data["created_at"],
-#                           client_data["need_to_disable"])
-#        logger.info(f"Client with wg_id {client_data['telegram_id']} saved successfully.")
-#
-#    except Exception as e:
-#        logger.error(f"Error saving client: {e}")
-#
-#    finally:
-#        await conn.close()
-#
-#
-#async def get_all_clients():
-#    """Получает список всех клиентов"""
-#    conn = await get_db_connection()
-#    try:
-#        clients = await conn.fetch("SELECT * FROM users")
-#        return [Client(**dict(client)) for client in clients]  # Преобразуем в объекты Client
-#    except Exception as e:
-#        logger.error(f"Ошибка при получении клиентов: {e}")
-#        return []
-#    finally:
-#        await conn.close()
-#
-#
-#async def get_client_by_telegram_id(telegram_id):
-#    conn = await get_db_connection()
-#    try:
-#        client = await conn.fetch("SELECT * FROM users WHERE telegram_id = $1", telegram_id)
-#        client_data = client[0]
-#        return Client(
-#            id=client_data['id'],
-#            telegram_id=client_data['telegram_id'],
-#            wg_id=client_data['wg_id'],
-#            has_premium_status=client_data['has_premium_status'],
-#            premium_status_is_valid_until=client_data['premium_status_is_valid_until'],
-#            config_file=client_data['config_file'],
-#            qr_code=client_data['qr_code'],
-#            enabled_status=client_data['enabled_status'],
-#            created_at=client_data['created_at'],
-#            need_to_disable=client_data['need_to_disable']
-#        )
-#    except Exception as e:
-#        logger.error(f"Ошибка при получении клиентов: {e}")
-#        return []
-#    finally:
-#        await conn.close()
-#
-#
-#async def update_user_data(telegram_id, **kwargs):
-#    if not kwargs:
-#        logger.error("Нет данных для обновления")
-#        return
-#
-#    conn = await get_db_connection()
-#
-#    set_clause = ", ".join([f"{key} = ${i + 1}" for i, key in enumerate(kwargs.keys())])
-#    values = list(kwargs.values()) + [telegram_id]
-#
-#    query = f"UPDATE users SET {set_clause} WHERE telegram_id = ${len(values)};"
-#    await conn.execute(query, *values)
-#
-#    await conn.close()
-#    logger.info(f"Обновлены поля {list(kwargs.keys())} у пользователя {telegram_id}")
-#
-#
-#async def update_single_field(telegram_id, field, value):
-#    conn = await get_db_connection()
-#
-#    query = f"UPDATE users SET {field} = $1 WHERE telegram_id = $2;"
-#    await conn.execute(query, value, telegram_id)
-#
-#    await conn.close()
-#    print(f"Поле {field} у пользователя {telegram_id} обновлено!")
-#
