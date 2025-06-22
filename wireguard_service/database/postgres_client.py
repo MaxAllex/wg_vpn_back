@@ -14,17 +14,17 @@ def load_secret(name):
 
 class ClientRepository:
     def __init__(self, max_retries: int = 3):
-        #load_dotenv()
-        #POSTGRES_USER = os.getenv('POSTGRES_USER')
-        #POSTGRES_PASSWORD = os.getenv('POSTGRES_PASS')
-        #POSTGRES_PORT = os.getenv('POSTGRES_PORT')
-        #POSTGRES_DB_NAME = os.getenv('POSTGRES_DB_NAME')
-        #POSTGRES_HOST_NAME = os.getenv('POSTGRES_HOST_NAME')  
-        POSTGRES_USER = load_secret("postgres_user")
-        POSTGRES_PASSWORD = load_secret("postgres_pass")
-        POSTGRES_PORT = load_secret("postgres_port")
-        POSTGRES_DB_NAME = load_secret("postgres_db_name")
-        POSTGRES_HOST_NAME = load_secret("postgres_host_name")
+        load_dotenv()
+        POSTGRES_USER = os.getenv('POSTGRES_USER')
+        POSTGRES_PASSWORD = os.getenv('POSTGRES_PASS')
+        POSTGRES_PORT = os.getenv('POSTGRES_PORT')
+        POSTGRES_DB_NAME = os.getenv('POSTGRES_DB_NAME')
+        POSTGRES_HOST_NAME = os.getenv('POSTGRES_HOST_NAME')  
+        #POSTGRES_USER = load_secret("postgres_user")
+        #POSTGRES_PASSWORD = load_secret("postgres_pass")
+        #POSTGRES_PORT = load_secret("postgres_port")
+        #POSTGRES_DB_NAME = load_secret("postgres_db_name")
+        #POSTGRES_HOST_NAME = load_secret("postgres_host_name")
         logger = logging.getLogger(__name__)
         self.logger = logger
         self.db_user = POSTGRES_USER

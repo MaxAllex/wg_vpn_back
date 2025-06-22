@@ -31,8 +31,8 @@ class WireguardService:
         self.kafka_producer = kafka_producer
         self.endpoints = endpoints
         self.password_data = password_data
-        #self.bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
-        self.bootstrap_servers = load_secret("bootstrap_servers")
+        self.bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
+        #self.bootstrap_servers = load_secret("bootstrap_servers")
         self.client_repository = client_repository
         if self.bootstrap_servers is None:
             raise ValueError("KAFKA_BOOTSTRAP_SERVERS environment variable is not set")
@@ -366,15 +366,17 @@ class WireguardService:
 
 def main():    
     load_dotenv()
-    PASSWORD_DATA = {'password': load_secret("wg_password"), 'remember': 'true'}
-    kafka_bootstrap_servers = load_secret("bootstrap_servers")
+    PASSWORD_DATA = {'password': os.getenv('PASSWORD'), 'remember': 'true'}
+    #kafka_bootstrap_servers = load_secret("bootstrap_servers")
+    kafka_bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
     if kafka_bootstrap_servers is None:
         raise ValueError("KAFKA_BOOTSTRAP_SERVERS environment variable is not set")
     kafka_producer = KafkaProducer(
         bootstrap_servers=kafka_bootstrap_servers,
         value_serializer=lambda v: json.dumps(v).encode('utf-8')
     )
-    endpoints = load_secret("endpoints")
+    #endpoints = load_secret("endpoints")
+    endpoints = os.getenv("ENDPOINTS")
     if endpoints is None:
         raise ValueError("ENDPOINTS environment variable is not set")
     endpoints = endpoints.split(",")
