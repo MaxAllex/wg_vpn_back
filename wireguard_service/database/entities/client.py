@@ -22,6 +22,11 @@ class Client(BaseModel):
     latest_handshake: Optional[datetime] = None
     app_token: Optional[str] = None
 
+    yookassa_payment_method_id: Optional[str] = None
+    yookassa_autopayment_active: Optional[bool] = False
+    yookassa_last_payment_type: Optional[str] = None
+    yookassa_subscription_type: Optional[str] = None
+
     # Метод для преобразования в словарь
     def to_dict(self):
         return self.model_dump()
