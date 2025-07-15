@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 from database.entities.client import Client
 from uuid import UUID
+
 from pathlib import Path
 
 def load_secret(name):
@@ -35,6 +36,7 @@ class ClientRepository:
         self.max_retries = max_retries
         self.dsn = f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
+
     async def connect(self):
         try:
             conn = await asyncpg.connect(self.dsn)
@@ -59,8 +61,44 @@ class ClientRepository:
             conn = await self.connect()
             
             query = """
-                    INSERT INTO users (telegram_id, wg_id, has_premium_status, premium_status_is_valid_until, config_file, enabled_status, created_at, need_to_disable, wg_server, last_used_gigabytes, used_gigabytes, max_gigabytes, jwt_version, latest_handshake, app_token, yookassa_payment_method_id, yookassa_autopayment_active, yookassa_last_payment_type, yookassa_subscription_type) VALUES ($1,'', false,now() - interval '1 days', '', false, now(), false, '', 0, 0, 10.0, 0, now(), '', '', false, '', '', '', '');
-                    """
+                INSERT INTO users (
+                    telegram_id, -- 1
+                    wg_id, -- 2
+                    has_premium_status, -- 3 
+                    premium_status_is_valid_until, -- 4 
+                    config_file, -- 5
+                    enabled_status, -- 6
+                    created_at, -- 7
+                    need_to_disable, -- 8 
+                    wg_server, -- 9
+                    jwt_version, -- 13
+                    latest_handshake, -- 14
+                    app_token, -- 15
+                    yookassa_payment_method_id, -- 16 
+                    yookassa_autopayment_active, -- 17
+                    yookassa_last_payment_type, -- 18
+                    yookassa_subscription_type, -- 19
+                    email -- 20
+                ) VALUES (
+                    $1, -- 1
+                    '', -- 2
+                    false, -- 3
+                    now() - interval '1 days', -- 4
+                    '', -- 5
+                    false, -- 6
+                    now(), -- 7
+                    false, -- 8
+                    '', -- 9
+                    0, --  13
+                    now(), -- 14
+                    '', -- 15
+                    '', -- 16
+                    false, -- 17
+                    '', -- 18
+                    '', -- 19
+                    '' -- 20
+                );
+            """
             await conn.execute(
                                 query,
                                 
@@ -98,14 +136,12 @@ class ClientRepository:
                 need_to_disable=client['need_to_disable'],
                 jwt_version=client['jwt_version'],
                 latest_handshake=client['latest_handshake'],
-                used_gigabytes=client['used_gigabytes'],
-                max_gigabytes=client['max_gigabytes'],
-                last_used_gigabytes=client['last_used_gigabytes'],
                 app_token=client['app_token'],
                 yookassa_payment_method_id=client['yookassa_payment_method_id'],
                 yookassa_autopayment_active=client['yookassa_autopayment_active'],
                 yookassa_last_payment_type=client['yookassa_last_payment_type'],
-                yookassa_subscription_type=client['yookassa_subscription_type']
+                yookassa_subscription_type=client['yookassa_subscription_type'],
+                email=client['email'],
             ))
             return clients_list  # Преобразуем в объекты Client
         except Exception as e:
@@ -137,14 +173,12 @@ class ClientRepository:
                 need_to_disable=client_data['need_to_disable'],
                 jwt_version=client_data['jwt_version'],
                 latest_handshake=client_data['latest_handshake'],
-                used_gigabytes=client_data['used_gigabytes'],
-                max_gigabytes=client_data['max_gigabytes'],
-                last_used_gigabytes=client_data['last_used_gigabytes'],
                 app_token=client_data['app_token'],
                 yookassa_payment_method_id=client_data['yookassa_payment_method_id'],
                 yookassa_autopayment_active=client_data['yookassa_autopayment_active'],
                 yookassa_last_payment_type=client_data['yookassa_last_payment_type'],
-                yookassa_subscription_type=client_data['yookassa_subscription_type']
+                yookassa_subscription_type=client_data['yookassa_subscription_type'],
+                email=client_data['email']
             )
         except Exception as e:
             if retry_count < self.max_retries:
@@ -173,15 +207,13 @@ class ClientRepository:
                 created_at=client_data['created_at'],
                 need_to_disable=client_data['need_to_disable'],
                 jwt_version=client_data['jwt_version'],
-                used_gigabytes=client_data['used_gigabytes'],
                 latest_handshake=client_data['latest_handshake'],
-                max_gigabytes=client_data['max_gigabytes'],
-                last_used_gigabytes=client_data['last_used_gigabytes'],
                 app_token=client_data['app_token'],
                 yookassa_payment_method_id=client_data['yookassa_payment_method_id'],
                 yookassa_autopayment_active=client_data['yookassa_autopayment_active'],
                 yookassa_last_payment_type=client_data['yookassa_last_payment_type'],
-                yookassa_subscription_type=client_data['yookassa_subscription_type']
+                yookassa_subscription_type=client_data['yookassa_subscription_type'],
+                email=client_data['email']
             )
         except Exception as e:
             if retry_count < self.max_retries:
@@ -210,10 +242,6 @@ class ClientRepository:
                 created_at=client_data['created_at'],
                 need_to_disable=client_data['need_to_disable'],
                 jwt_version=client_data['jwt_version'],
-
-                used_gigabytes=client_data['used_gigabytes'],
-                max_gigabytes=client_data['max_gigabytes'],
-                last_used_gigabytes=client_data['last_used_gigabytes']
             )
         except Exception as e:
             if retry_count < self.max_retries:
