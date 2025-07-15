@@ -41,15 +41,13 @@ class WireguardService:
         db_clients = await self.client_repository.get_all_clients()
         for client in db_clients:
             try:
-                #isclose чтобы исключить сильный перебор
-                if (client.last_used_gigabytes + client.used_gigabytes > client.max_gigabytes or isclose(client.last_used_gigabytes + client.used_gigabytes, client.max_gigabytes)) and not client.has_premium_status and client.config_file is not None and client.config_file != "" and client.enabled_status:
+                if not client.has_premium_status and client.config_file is not None and client.config_file != "" and client.enabled_status:
                     async with self.create_session(client.wg_server) as session:
                         await self.action_with_client(session, client.wg_server, client.wg_id, 'disable')
-                    await self.client_repository.update_user_data(client.id, 0, enabled_status=False, last_used_gigabytes=client.last_used_gigabytes+client.used_gigabytes, used_gigabytes=0)
+                    await self.client_repository.update_user_data(client.id, 0, enabled_status=False)
                     
-                    self.kafka_producer.send("disable-client", value={"telegram_id": client.telegram_id, "wg_id": client.wg_id})
                     
-                elif not client.enabled_status and client.config_file is not None and client.config_file != "" and (client.has_premium_status or (client.last_used_gigabytes +client.used_gigabytes < client.max_gigabytes and not isclose(client.last_used_gigabytes +client.used_gigabytes, client.max_gigabytes))):
+                elif not client.enabled_status and client.config_file is not None and client.config_file != "" and client.has_premium_status:
                     async with self.create_session(client.wg_server) as session:
                         await self.action_with_client(session, client.wg_server, client.wg_id, 'enable')
                     await self.client_repository.update_user_data(client.id, 0, enabled_status=True)
@@ -57,46 +55,8 @@ class WireguardService:
                     
             except Exception as e:
                 self.logger.error(f"error iterating in db: {e}")
-                continue
-    
-    async def scheduler_check_traffic(self):
-        db_clients = await self.client_repository.get_all_clients()
-        wg_clients = {}
-        for client in db_clients:
-            if client.wg_server is not None and client.wg_server != "" and client.wg_server not in wg_clients.keys():
-                async with self.create_session(client.wg_server) as session:
-                    wg_clients[client.wg_server] = await self.get_clients(session, client.wg_server)
-        for clients in wg_clients.values():
-            for client in clients:
-                for db_client in db_clients:
-                    try:
-                        if str(db_client.wg_id) == str(client['id']):
-                            transfer_tx = client.get("transferTx", 0)
-                            gigabytes_value = self.bytes_to_gb(transfer_tx) if transfer_tx else 0
-                            await self.client_repository.update_single_field(str(db_client.id), 0, "used_gigabytes", gigabytes_value)
-                            await self.client_repository.update_single_field(str(db_client.id), 0, "latest_handshake", datetime.datetime.strptime(client['latestHandshakeAt'], '%Y-%m-%dT%H:%M:%S.%fZ') if client['latestHandshakeAt'] is not None else None)
-                            break
-                    except Exception as e:
-                        self.logger.error(f"error iterating in db: {e}")
-        await self.second_step_check_traffic()
-                    
+                continue         
 
-
-    async def scheduler_upload_traffic_for_users(self):
-        db_clients = await self.client_repository.get_all_clients()
-        print("scheduler_upload_traffic_for_users")
-        for client in db_clients:
-            max_gigabytes = 10
-            if client.last_used_gigabytes+client.used_gigabytes < client.max_gigabytes and client.max_gigabytes > 10:
-                max_gigabytes = 10+client.max_gigabytes-client.last_used_gigabytes-client.used_gigabytes
-            if client.enabled_status:
-                async with self.create_session(client.wg_server) as session:
-                    await self.action_with_client(session, client.wg_server, client.wg_id, 'disable')
-            async with self.create_session(client.wg_server) as session:
-                await self.action_with_client(session, client.wg_server, client.wg_id, 'enable')
-            await self.client_repository.update_user_data(str(client.id), 0, last_used_gigabytes=0, used_gigabytes=0,max_gigabytes=max_gigabytes, enabled_status=True)
-        print("end scheduler_upload_traffic_for_users")
-        self.kafka_producer.send("upload-traffic", value={"telegram_id": 0})
 
     async def scheduler_check_premium_status(self):
         db_clients = await self.client_repository.get_all_clients()
@@ -106,7 +66,6 @@ class WireguardService:
                 telegram_id = client.telegram_id
                 if client.premium_status_is_valid_until.date() < today:
                     await self.client_repository.update_single_field(str(client.id), 0, "has_premium_status", False)
-                    await self.client_repository.update_single_field(str(client.id), 0, "premium_status_is_valid_until", None)
                     self.kafka_producer.send("disable-premium", value={"telegram_id": telegram_id})
                     if client.yookassa_autopayment_active:
                         self.kafka_producer.send("repay-request", value={"user_data": {"id":client.id},
@@ -114,22 +73,13 @@ class WireguardService:
                         })
                 elif client.premium_status_is_valid_until.date() == today:
                     self.kafka_producer.send("premium-reminder", value={"telegram_id": telegram_id})
+        await self.second_step_check_traffic()
 
 
     def run(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         scheduler = AsyncIOScheduler(event_loop=loop)
-
-        scheduler.add_job(
-            self.scheduler_check_traffic,
-            CronTrigger(minute="*/1", timezone=pytz.timezone("Europe/Moscow")),
-        )
-
-        scheduler.add_job(
-            self.scheduler_upload_traffic_for_users,
-            CronTrigger(day=1, hour=9, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
-        )
 
         scheduler.add_job(
             self.scheduler_check_premium_status,
@@ -256,7 +206,7 @@ class WireguardService:
     async def get_config_handler(self, user_data, source):
         try:
             client_data = await self.client_repository.get_client_by_user_id(user_data['id'])
-            if client_data.last_used_gigabytes + client_data.used_gigabytes > client_data.max_gigabytes and not client_data.has_premium_status:
+            if not client_data.has_premium_status:
                 self.kafka_producer.send(f'{source}-config-responses', value={'status':False, 'id': client_data.id})
                 return
             endpoint = client_data.wg_server
@@ -271,7 +221,7 @@ class WireguardService:
                     await self.delete_client(session, start_endpoint, client_data.wg_id)
                 client_data.wg_server = endpoint
                 client_data.wg_id = temp_wg
-                await self.client_repository.update_user_data(user_data['id'], 0, wg_id=temp_wg, wg_server=endpoint, last_used_gigabytes=client_data.last_used_gigabytes+client_data.used_gigabytes, used_gigabytes=0)
+                await self.client_repository.update_user_data(user_data['id'], 0, wg_id=temp_wg, wg_server=endpoint)
 
             async with self.create_session(endpoint) as session:
                 config_bytes = await self.get_config(session, endpoint, client_data.wg_id)
@@ -304,7 +254,7 @@ class WireguardService:
                 clients_with_name = [d for d in clients if d['name'] == str(user_data['id'])]
                 wg_user_id = clients_with_name[0]["id"]
                 if is_changed:
-                    await self.client_repository.update_user_data(user_data['id'], 0, wg_id=result["id"], wg_server=endpoint, last_used_gigabytes=client_data.last_used_gigabytes+client_data.used_gigabytes, used_gigabytes=0)
+                    await self.client_repository.update_user_data(user_data['id'], 0, wg_id=result["id"], wg_server=endpoint)
                     return result['id']
                 if 'error' in result.keys() and result['error'] != '':
                     self.kafka_producer.send(f'{source}-connect-responses', value={'status':False, 'id': client_data.id})
