@@ -51,7 +51,6 @@ class WireguardService:
                     async with self.create_session(client.wg_server) as session:
                         await self.action_with_client(session, client.wg_server, client.wg_id, 'enable')
                     await self.client_repository.update_user_data(client.id, 0, enabled_status=True)
-                    self.kafka_producer.send("enable-client", value={"telegram_id": client.telegram_id, "wg_id": client.wg_id})
                     
             except Exception as e:
                 self.logger.error(f"error iterating in db: {e}")
