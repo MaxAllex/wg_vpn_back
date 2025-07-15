@@ -37,6 +37,24 @@ class WireguardService:
         if self.bootstrap_servers is None:
             raise ValueError("KAFKA_BOOTSTRAP_SERVERS environment variable is not set")
     
+    async def scheduler_check_traffic(self):
+        db_clients = await self.client_repository.get_all_clients()
+        wg_clients = {}
+        for client in db_clients:
+            if client.wg_server is not None and client.wg_server != "" and client.wg_server not in wg_clients.keys():
+                async with self.create_session(client.wg_server) as session:
+                    wg_clients[client.wg_server] = await self.get_clients(session, client.wg_server)
+        for clients in wg_clients.values():
+            for client in clients:
+                for db_client in db_clients:
+                    try:
+                        if str(db_client.wg_id) == str(client['id']):
+                            await self.client_repository.update_single_field(str(db_client.id), 0, "latest_handshake", datetime.datetime.strptime(client['latestHandshakeAt'], '%Y-%m-%dT%H:%M:%S.%fZ') if client['latestHandshakeAt'] is not None else None)
+                            break
+                    except Exception as e:
+                        self.logger.error(f"error iterating in db: {e}")
+
+
     async def second_step_check_traffic(self):
         db_clients = await self.client_repository.get_all_clients()
         for client in db_clients:
@@ -84,6 +102,12 @@ class WireguardService:
             self.scheduler_check_premium_status,
             CronTrigger(day="*/1", hour=18, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
         )
+        
+        scheduler.add_job(
+            self.scheduler_check_traffic,
+            CronTrigger(hour="*/1", timezone=pytz.timezone("Europe/Moscow")),
+        )
+
         scheduler.start()
         self._start_kafka_consumer()
         try:
@@ -101,30 +125,25 @@ class WireguardService:
 
 
     async def get_config(self, session: ClientSession, endpoint: str, client_id: str) -> bytes:
-        print(f"http://{endpoint}/api/wireguard/client")
         async with session.get(f"http://{endpoint}/api/wireguard/client/{client_id}/configuration") as response:
             return await response.read()
     
     async def create_client(self, session: ClientSession, endpoint: str, user_name: str) -> dict:
-        print(f"http://{endpoint}/api/wireguard/client")
         async with session.post(f"http://{endpoint}/api/wireguard/client", json={'name': user_name}) as response:
             return await response.json()
 
 
     async def get_clients(self, session: ClientSession, endpoint: str) -> dict:
-        print(f"http://{endpoint}/api/wireguard/client")
         async with session.get(f"http://{endpoint}/api/wireguard/client") as response:
             return await response.json()
 
 
     async def action_with_client(self, session: ClientSession, endpoint: str, client_id: str, action: str) -> dict:
-        print(f"http://{endpoint}/api/wireguard/client")
         async with session.post(f"http://{endpoint}/api/wireguard/client/{client_id}/{action}") as response:
             return await response.json()
 
 
     async def delete_client(self, session: ClientSession, endpoint: str, client_id: str) -> dict:
-        print(f"http://{endpoint}/api/wireguard/client")
         async with session.delete(f"http://{endpoint}/api/wireguard/client/{client_id}") as response:
             return await response.json()
 
@@ -153,7 +172,6 @@ class WireguardService:
             return float('inf')
                     
     async def evaluate_endpoint(self, endpoint: str, timeout: float = 2.0):
-        print("Evaluating endpoint:", endpoint)
         result = {
             "endpoint": endpoint,
             "alive": False,
@@ -174,7 +192,6 @@ class WireguardService:
 
                 result["score"] = result["latency"] * 0.1 + result["clients"] * 0.9
                 result["alive"] = True
-                print(result)
             return result
         except Exception as e:
             print(e)
