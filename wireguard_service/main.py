@@ -75,24 +75,6 @@ class WireguardService:
                 continue         
 
 
-    async def scheduler_check_premium_status(self):
-        db_clients = await self.client_repository.get_all_clients()
-        for client in db_clients:
-            if client.has_premium_status:
-                today = datetime.date.today()
-                telegram_id = client.telegram_id
-                if client.premium_status_is_valid_until.date() < today:
-                    await self.client_repository.update_single_field(str(client.id), 0, "has_premium_status", False)
-                    self.kafka_producer.send("disable-premium", value={"telegram_id": telegram_id})
-                    if client.yookassa_autopayment_active:
-                        self.kafka_producer.send("repay-request", value={"user_data": {"id":client.id},
-                            "source": "telegram" if client.telegram_id is not None else "other"
-                        })
-                elif client.premium_status_is_valid_until.date() == today:
-                    self.kafka_producer.send("premium-reminder", value={"telegram_id": telegram_id})
-        await self.second_step_check_traffic()
-
-
     def run(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -101,11 +83,6 @@ class WireguardService:
         scheduler.add_job(
             self.scheduler_check_premium_status,
             CronTrigger(day="*/1", hour=18, minute=0, second=0, timezone=pytz.timezone("Europe/Moscow")),
-        )
-        
-        scheduler.add_job(
-            self.scheduler_check_traffic,
-            CronTrigger(hour="*/1", timezone=pytz.timezone("Europe/Moscow")),
         )
 
         scheduler.start()
@@ -221,6 +198,9 @@ class WireguardService:
 
     async def get_config_handler(self, user_data, source):
         try:
+            if client.config_file is not None and client.config!="":
+                await second_step_check_traffic()
+                return
             client_data = await self.client_repository.get_client_by_user_id(user_data['id'])
             if not client_data.has_premium_status:
                 self.kafka_producer.send(f'{source}-config-responses', value={'status':False, 'id': client_data.id})
@@ -259,8 +239,11 @@ class WireguardService:
 
     async def create_client_handler(self, user_data, source, is_changed=False):
         try:
-            endpoint = await self.best_endpoint()
             client_data = await self.client_repository.get_client_by_user_id(user_data['id'])
+            if client_data.config_file is not None and client_data.config_file != "":
+                await self.second_step_check_traffic()
+                return
+            endpoint = await self.best_endpoint()
             if endpoint == "Failed":
                 self.kafka_producer.send(f'{source}-connect-responses', value={'status':False, 'id': client_data.id})
                 return
