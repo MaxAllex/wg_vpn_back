@@ -118,8 +118,13 @@ class ClientRepository:
             await self.close(conn)
 
     async def get_client_by_telegram_id(self, telegram_id:int, retry_count: int = 0) -> Client:
-        conn = await self.connect()
+        conn = None
         try:
+            conn = await self.connect()
+            if conn is None:
+                self.logger.error("Failed to connect to database")
+                return None
+                
             client = await conn.fetch("SELECT * FROM users WHERE telegram_id = $1", telegram_id)
             if len(client) == 0:
                 return None
@@ -152,11 +157,17 @@ class ClientRepository:
             self.logger.error(f"Error getting client by telegram_id: {e}")
             return None
         finally:
-            await conn.close()    
+            if conn is not None:
+                await self.close(conn)    
 
     async def get_client_by_user_id(self, id:str, retry_count: int = 0) -> Client:
-        conn = await self.connect()
+        conn = None
         try:
+            conn = await self.connect()
+            if conn is None:
+                self.logger.error("Failed to connect to database")
+                return None
+                
             client = await conn.fetch("SELECT * FROM users WHERE id = $1", id)
             if len(client) == 0:
                 return None
@@ -189,11 +200,17 @@ class ClientRepository:
             self.logger.error(f"Error getting client by telegram_id: {e}")
             return None
         finally:
-            await conn.close()     
+            if conn is not None:
+                await self.close(conn)     
 
     async def get_client_by_app_token(self, app_token: str, retry_count: int = 0) -> Client:
-        conn = await self.connect()
+        conn = None
         try:
+            conn = await self.connect()
+            if conn is None:
+                self.logger.error("Failed to connect to database")
+                return None
+                
             client = await conn.fetch("SELECT * FROM users WHERE app_token = $1", app_token)
             if len(client) == 0:
                 return None
@@ -221,7 +238,8 @@ class ClientRepository:
             self.logger.error(f"Error getting client by telegram_id: {e}")
             return None
         finally:
-            await conn.close()    
+            if conn is not None:
+                await self.close(conn)    
 
     async def update_user_data(self, uuid, retry_count , **kwargs):
         if not kwargs:
@@ -247,9 +265,24 @@ class ClientRepository:
 
 
     async def update_single_field(self, uuid,retry_count, field, value):
+        # Whitelist of allowed field names to prevent SQL injection
+        ALLOWED_FIELDS = {
+            'wg_id', 'has_premium_status', 'premium_status_is_valid_until', 
+            'config_file', 'enabled_status', 'need_to_disable', 'wg_server',
+            'last_used_gigabytes', 'used_gigabytes', 'max_gigabytes', 
+            'jwt_version', 'latest_handshake', 'app_token',
+            'yookassa_payment_method_id', 'yookassa_autopayment_active',
+            'yookassa_last_payment_type', 'yookassa_subscription_type'
+        }
+        
+        if field not in ALLOWED_FIELDS:
+            self.logger.error(f"Invalid field name: {field}")
+            raise ValueError(f"Field '{field}' is not allowed for updates")
+            
         try:
             conn = await self.connect()
         
+            # Use parameterized query with allowed field name
             query = f"UPDATE users SET {field} = $1 WHERE id = $2;"
             await conn.execute(query, value, uuid)
             self.logger.info(f"Поле {field} у пользователя {uuid} обновлено!")
