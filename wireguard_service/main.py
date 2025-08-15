@@ -327,7 +327,9 @@ class WireguardService:
 
 
     def bytes_to_gb(self, bytes_value):
-        gb_value = bytes_value / 1_000_000_000  # 1 ГБ = 10^9 байт
+        # Use binary conversion: 1 GB = 2^30 bytes = 1,073,741,824 bytes
+        # This is the standard for computing/networking contexts
+        gb_value = bytes_value / 1_073_741_824  # 1 ГБ = 2^30 байт
         return round(gb_value, 2)
     
 
